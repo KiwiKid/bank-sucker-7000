@@ -22,15 +22,19 @@ export function getANZActionPanel():HTMLUListElement {
     return document.querySelector("ul[class*='transactions-action-links']")
 }
 
+export function getSubmitButton():HTMLButtonElement {
+    return document.querySelector('button')
+}
+
 
 //export function getRootANZElement():HTMLElement {
 //    return document.querySelector("div[class*='container-main']")/
 //}
 
-export function getSubmitButton(): HTMLButtonElement {
+/*export function getSubmitButton(): HTMLButtonElement {
     const textarea = getTextArea()
     if (!textarea) {
         return null
     }
     return textarea.parentNode.querySelector("button")
-}
+}*/

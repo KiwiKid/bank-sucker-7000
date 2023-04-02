@@ -12,6 +12,7 @@
     "watch": "chokidar src -c \"npm run build-dev\""
   },
   "dependencies": {
+    "@actual-app/api": "^5.1.0",
     "@mozilla/readability": "^0.4.2",
     "cheerio": "^1.0.0-rc.12",
     "linkedom": "^0.14.23",
