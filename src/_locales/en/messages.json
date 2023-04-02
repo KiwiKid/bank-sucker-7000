@@ -1,0 +1,11 @@
+{
+  "appName": {
+    "message": "Bank-Sucker-7000"
+  },
+  "appDesc": {
+    "message": "Load transactions from anz account pages"
+  },
+  "toggleWebAccess": {
+    "message": "Toggle Web Access"
+  }
+}
