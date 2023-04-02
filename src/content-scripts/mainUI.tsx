@@ -1,12 +1,14 @@
 import '../style/base.css'
-import { getANZActionPanel, getANZTransactionTable, getSubmitButton } from "src/util/elementFinder"
+import { getANZActionPanel, getANZTransactionTable, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
 import { render, h } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
+import { dateFormatter } from 'src/util/dateFormatter';
 
 let table: HTMLElement
 let actionsPanel: HTMLElement
 let btnSubmit:HTMLButtonElement
-
+let startDatePicker:HTMLInputElement
+let endDatePicker:HTMLInputElement
 
 async function updateUI() {
 
@@ -20,6 +22,8 @@ async function updateUI() {
     table = getANZTransactionTable()
     actionsPanel = getANZActionPanel()
     btnSubmit = getSubmitButton()
+    startDatePicker = getStartDatePicker();
+    endDatePicker = getEndDatePicker()
 
     console.log('updateUI 3')
 
@@ -46,14 +50,14 @@ async function updateUI() {
        // shadowRootDiv.classList.add('wcg-toolbar')
         actionsPanel.appendChild(shadowRootDiv)
         console.log('appendChild')
-        render(<button onClick={onSubmit}>Hello World</button>, shadowRoot)
+        render(<button onClick={onSubmit} class="actual-import">Hello World</button>, shadowRoot)
         console.log('render')
     }else{
         console.error('No action panel? getANZActionPanel')
     }
 
 }
-
+const ACTUAL_ACCCOUNT_ID = ''
 async function onSubmit(event: MouseEvent | KeyboardEvent) {
 
     if (event instanceof KeyboardEvent && event.shiftKey && event.key === 'Enter')
@@ -67,7 +71,11 @@ async function onSubmit(event: MouseEvent | KeyboardEvent) {
 
         const rows = table.querySelectorAll("div[class*='transaction-row']")
 
-        console.log(rows)
+        const startDate = dateFormatter(startDatePicker.value)
+        const endDate = dateFormatter(endDatePicker.value)
+
+
+        console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
     }
 
 }

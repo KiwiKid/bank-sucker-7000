@@ -23,7 +23,15 @@ export function getANZActionPanel():HTMLUListElement {
 }
 
 export function getSubmitButton():HTMLButtonElement {
-    return document.querySelector('button')
+    return document.querySelector("button[class*='actual-import']")
+}
+
+export function getStartDatePicker():HTMLInputElement {
+    return document.querySelector("input[class*='date-range-start-date']")
+}
+
+export function getEndDatePicker():HTMLInputElement {
+    return document.querySelector("input[class*='date-range-end-date']")
 }
 
 
