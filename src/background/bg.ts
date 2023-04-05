@@ -51,7 +51,7 @@ Browser.runtime.onMessage.addListener((message) => {
     if(message.type === 'get_transactions'){
         console.log('Browser.runtime.onMessage.addListener((message) => get_transactions ')
 
-        return getTransactions(message.accountId, message.dateTo, message.dateFrom)
+        return getTransactions(message.accountId, message.options.startDate, message.options.endDate)
     }
 })
 /*

@@ -14,6 +14,9 @@ let endDatePicker:HTMLInputElement
 let startDate:string  // YYYY-MM-DD
 let endDate:string 
 
+
+let existingTransactions:unknown[]
+
 async function updateUI() {
 
     console.log('updateUI entry')
@@ -57,12 +60,9 @@ async function updateUI() {
        // shadowRootDiv.classList.add('wcg-toolbar')
         actionsPanel.appendChild(shadowRootDiv)
         console.log('appendChild')
-        render(<Fragment><button onClick={() => Browser.runtime.sendMessage({
-            type: "get_transactions", options: {
-                accountId: 'anz',
-                startDate,
-                endDate
-            }})} class="actual-import">Hello World</button>{!startDate ? startDate : ''}{!endDate ? endDate : ''}
+
+        render(<Fragment>
+            <button onClick={onSubmit} class="actual-import">Hello World</button>{!startDate ? startDate : ''}{!endDate ? endDate : ''}
             </Fragment>, shadowRoot)
         console.log('render')
     }else{
@@ -70,7 +70,35 @@ async function updateUI() {
     }
 
 }
-const ACTUAL_ACCCOUNT_ID = ''
+
+async function onSubmit(event){
+    if (event.type === "click") {
+        
+       existingTransactions = await Browser.runtime.sendMessage({
+        type: "get_transactions", options: {
+            accountId: 'anz',
+            startDate,
+            endDate
+        }})
+
+
+        const rows = table.querySelectorAll("div[class*='transaction-row']")
+
+        const transactionsToSend = Array.from(rows).map((r) => {
+            return {
+                date: r.getAttribute('data-date'),
+                transactionId: r.getAttribute('data-transaction-id'),
+                type: r.querySelector('.column-type').textContent.trim(),
+                details: r.querySelector('.transaction-detail-summary').textContent.trim(),
+                amount: r.querySelector('.column-amount .money').textContent.trim(),
+                balance: r.querySelector('.column-balance .money').textContent.trim(),
+            }
+        })
+        console.log(`${transactionsToSend.length} to upload (${existingTransactions.length} existing)`)
+        console.log(transactionsToSend)
+
+    }
+}
 /*async function onSubmit(event: MouseEvent | KeyboardEvent) {
 
     if (event instanceof KeyboardEvent && event.shiftKey && event.key === 'Enter')
@@ -94,16 +122,7 @@ const ACTUAL_ACCCOUNT_ID = ''
       /*    console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
         console.log(rows)
 
-      const transactionsToSend = Array.from(rows).map((r) => {
-            return {
-                date: r.getAttribute('data-date'),
-                transactionId: r.getAttribute('data-transaction-id'),
-                type: r.querySelector('.column-type').textContent.trim(),
-                details: r.querySelector('.transaction-detail-summary').textContent.trim(),
-                amount: r.querySelector('.column-amount .money').textContent.trim(),
-                balance: r.querySelector('.column-balance .money').textContent.trim(),
-            }
-        })
+
 
 
 
@@ -132,10 +151,9 @@ const onTableChange = function (){
 
 console.log("\n\n\n MAIN ANZ UI RAN 0");
 
-const rootEl = getANZTransactionTable();
 
 
-console.log(`MAIN ANZ UI RAN ${rootEl}\n\n ${rootEl?.innerHTML}`);
+// console.log(`MAIN ANZ UI RAN ${rootEl}\n\n ${rootEl?.innerHTML}`);
 
 
 console.log('window.onload BEF')
@@ -144,8 +162,19 @@ console.log('window.onload BEF')
 setTimeout(() => {
     console.log('setTimeout updateUI')
     updateUI()
-}, 1500)
+    try {
+        console.log('MAIN ANZ UI RAN ONLOAD - 2 MutationObserver')
+        const rootEl = getANZTransactionTable();
 
+        new MutationObserver(() => {
+            console.log('MAIN ANZ UI RAN ONLOAD - 3 updateUI()')
+            updateUI()
+        }).observe(rootEl, { childList: true })
+    } catch (e) {
+        console.info("error --> Could not update UI:\n", e.stack)
+    }
+}, 1500)
+/*
 window.onload = function () {
     console.log('MAIN ANZ UI 1 RAN ONLOAD')
     updateUI()
@@ -158,10 +187,10 @@ window.onload = function () {
             updateUI()
         }).observe(rootEl, { childList: true })
     } catch (e) {
-        console.info("WebChatGPT error --> Could not update UI:\n", e.stack)
+        console.info("error --> Could not update UI:\n", e.stack)
     }
 }
-
+*/
 document.addEventListener("onload", () => {
     console.log('onload');
 })

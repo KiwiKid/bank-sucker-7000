@@ -10,6 +10,7 @@ const defaultConfig = {
     timePeriod: '',
     language: getSystemLanguage(),
     promptUUID: 'default',
+    fireflyToken: 'set-this-token-in-browser-storage'
 }
 
 export type UserConfig = typeof defaultConfig
