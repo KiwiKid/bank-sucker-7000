@@ -31,7 +31,7 @@ async function updateUI() {
     if (actionsPanel) {
         
         table.addEventListener("DOMSubtreeModified", onTableChange)
-        btnSubmit.addEventListener("click", onSubmit)
+        //btnSubmit.addEventListener("click", onSubmit)
 
        // const textareaParentParent = table.parentElement.parentElement
         //textareaParentParent.style.flexDirection = 'column'
@@ -75,7 +75,42 @@ async function onSubmit(event: MouseEvent | KeyboardEvent) {
         const endDate = dateFormatter(endDatePicker.value)
 
 
-        console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
+      /*    console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
+        console.log(rows)
+
+      const transactionsToSend = Array.from(rows).map((r) => {
+            return {
+                date: r.getAttribute('data-date'),
+                transactionId: r.getAttribute('data-transaction-id'),
+                type: r.querySelector('.column-type').textContent.trim(),
+                details: r.querySelector('.transaction-detail-summary').textContent.trim(),
+                amount: r.querySelector('.column-amount .money').textContent.trim(),
+                balance: r.querySelector('.column-balance .money').textContent.trim(),
+            }
+        })
+
+        console.log(response)*/
+
+
+
+
+
+
+//:SearchResponse
+     /*   const response = await Browser.runtime.sendMessage({
+            type: "get_transactions", options: {
+                accountId: 'anz',
+                startDate,
+                endDate
+            }})
+
+            console.log(response)
+    
+        if(!response){
+            console.error('got no existing budget')
+        }
+
+        console.error(`got existing tra ${response.length}`)*/
     }
 
 }

@@ -1,6 +1,6 @@
 import Browser from 'webextension-polyfill'
 import { getHtml } from 'src/content-scripts/ddg_search'
-import { getWebpageTitleAndText } from 'src/content-scripts/api'
+import { getTransactions, getWebpageTitleAndText } from 'src/content-scripts/api'
 
 
 const manifest_version = Browser.runtime.getManifest().manifest_version
@@ -45,6 +45,10 @@ Browser.runtime.onMessage.addListener((message) => {
 
     if (message.type === "get_webpage_text") {
         return getWebpageTitleAndText(message.url, message.html)
+    }
+
+    if(message.type === 'get_transactions'){
+        return getTransactions(message.accountId, message.dateTo, message.dateFrom)
     }
 })
 console.log('declarativeNetRequest')

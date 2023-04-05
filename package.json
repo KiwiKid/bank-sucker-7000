@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "bank-sucker-7000",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "license": "MIT",
   "scripts": {
     "build-dev": "node build.mjs",

@@ -49,6 +49,31 @@ export async function getWebpageTitleAndText(url: string, html_str = ''): Promis
     return { title: parsed.title, body: text, url }
 }
 
+
+export interface Transaction {
+    id:string
+    amount:number
+}
+export async function getTransactions(accountId:string, dateFrom:string, dateTo:string): Promise<Transaction[]>{
+    let response: Response
+    const baseUrl = 'http://192.168.0.5';
+    const endpoint = '/v1/transactions';
+
+    try {
+        response = await fetch(baseUrl + endpoint)
+    } catch (e) {
+        console.error(e)
+        return []
+    }
+    if (!response.ok) {
+        console.error('Response not ok', { response })
+        return []
+    }
+    const transactions = await response.json()
+
+    console.log(transactions)
+}
+
 export async function apiExtractText(url: string): Promise<SearchResult[]> {
     const response = await Browser.runtime.sendMessage({
         type: "get_webpage_text",
