@@ -1,14 +1,18 @@
 import '../style/base.css'
 import { getANZActionPanel, getANZTransactionTable, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
-import { render, h } from 'preact'
+import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
+import Browser from 'webextension-polyfill';
 
 let table: HTMLElement
 let actionsPanel: HTMLElement
 let btnSubmit:HTMLButtonElement
 let startDatePicker:HTMLInputElement
 let endDatePicker:HTMLInputElement
+
+let startDate:string  // YYYY-MM-DD
+let endDate:string 
 
 async function updateUI() {
 
@@ -24,6 +28,9 @@ async function updateUI() {
     btnSubmit = getSubmitButton()
     startDatePicker = getStartDatePicker();
     endDatePicker = getEndDatePicker()
+
+    startDate = dateFormatter(startDatePicker?.value)
+    endDate = dateFormatter(endDatePicker?.value)
 
     console.log('updateUI 3')
 
@@ -50,7 +57,13 @@ async function updateUI() {
        // shadowRootDiv.classList.add('wcg-toolbar')
         actionsPanel.appendChild(shadowRootDiv)
         console.log('appendChild')
-        render(<button onClick={onSubmit} class="actual-import">Hello World</button>, shadowRoot)
+        render(<Fragment><button onClick={() => Browser.runtime.sendMessage({
+            type: "get_transactions", options: {
+                accountId: 'anz',
+                startDate,
+                endDate
+            }})} class="actual-import">Hello World</button>{!startDate ? startDate : ''}{!endDate ? endDate : ''}
+            </Fragment>, shadowRoot)
         console.log('render')
     }else{
         console.error('No action panel? getANZActionPanel')
@@ -58,7 +71,7 @@ async function updateUI() {
 
 }
 const ACTUAL_ACCCOUNT_ID = ''
-async function onSubmit(event: MouseEvent | KeyboardEvent) {
+/*async function onSubmit(event: MouseEvent | KeyboardEvent) {
 
     if (event instanceof KeyboardEvent && event.shiftKey && event.key === 'Enter')
         return
@@ -71,9 +84,12 @@ async function onSubmit(event: MouseEvent | KeyboardEvent) {
 
         const rows = table.querySelectorAll("div[class*='transaction-row']")
 
-        const startDate = dateFormatter(startDatePicker.value)
-        const endDate = dateFormatter(endDatePicker.value)
 
+        const response = await 
+
+            console.log(response)
+
+            console.log(response)
 
       /*    console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
         console.log(rows)
@@ -89,20 +105,13 @@ async function onSubmit(event: MouseEvent | KeyboardEvent) {
             }
         })
 
-        console.log(response)*/
-
 
 
 
 
 
 //:SearchResponse
-     /*   const response = await Browser.runtime.sendMessage({
-            type: "get_transactions", options: {
-                accountId: 'anz',
-                startDate,
-                endDate
-            }})
+     /*   
 
             console.log(response)
     
@@ -110,10 +119,10 @@ async function onSubmit(event: MouseEvent | KeyboardEvent) {
             console.error('got no existing budget')
         }
 
-        console.error(`got existing tra ${response.length}`)*/
+        console.error(`got existing tra ${response.length}`)
     }
 
-}
+}*/
 
 
 

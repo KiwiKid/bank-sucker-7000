@@ -39,6 +39,7 @@ Browser.runtime.onMessage.addListener((request) => {
 })
 
 Browser.runtime.onMessage.addListener((message) => {
+    console.log('Browser.runtime.onMessage.addListener((message) => ')
     if (message.type === "get_search_results") {
         return getHtml(message.search)
     }
@@ -48,10 +49,12 @@ Browser.runtime.onMessage.addListener((message) => {
     }
 
     if(message.type === 'get_transactions'){
+        console.log('Browser.runtime.onMessage.addListener((message) => get_transactions ')
+
         return getTransactions(message.accountId, message.dateTo, message.dateFrom)
     }
 })
-console.log('declarativeNetRequest')
+/*
 // Firefox does not support declarativeNetRequest.updateDynamicRules yet
 Browser.declarativeNetRequest.updateDynamicRules({
     addRules: [
@@ -77,7 +80,7 @@ Browser.declarativeNetRequest.updateDynamicRules({
     ],
     removeRuleIds: [1],
 })
-
+*/
 function update_origin_for_ddg_in_firefox() {
     Browser.webRequest.onBeforeSendHeaders.addListener(
         (details) => {
