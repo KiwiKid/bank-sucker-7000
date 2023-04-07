@@ -2,8 +2,9 @@ import { Readability } from "@mozilla/readability"
 import { parseHTML } from "linkedom"
 import Browser from "webextension-polyfill"
 import { SearchResult } from "./ddg_search"
-import { getUserConfig } from "src/util/userConfig"
-import { updateUserConfig } from "src/util/userConfig"
+import { getFireflyConfig } from "src/util/userConfig"
+import { AccountsApi, Configuration, TransactionsApi, TransactionStore, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
+import { ANZRow } from "src/util/elementFinder"
 
 const cleanText = (text: string) =>
     text.trim()
@@ -78,31 +79,62 @@ interface Pagination {
     links: Links;
   }
 
-export async function getTransactions(accountId:string, dateFrom:string, dateTo:string): Promise<Transaction[]>{
+  interface GetTransactionsOptions {
+    accountId: string,
+    /**
+     * YYYY-MM-DD
+     */
+    dateFrom:string,
+    /**
+     * YYYY-MM-DD
+     */
+    dateTo:string 
+}
+
+export function getTransactionTypeProperty (transaction:ANZRow):TransactionTypeProperty {
+    if(transaction.creditAmount?.length > 0){
+        return 'withdrawal' as TransactionTypeProperty
+    }
+    return 'deposit' as TransactionTypeProperty
+
+    /*Withdrawal = "withdrawal",
+    Deposit = "deposit",
+    Transfer = "transfer",
+    Reconciliation = "reconciliation",
+    OpeningBalance = "opening balance"*/
+}
+
+export interface SetTransactionsOptions {
+    transactions:TransactionSplitStore[] 
+    
+    /*{
+         * YYYY-MM-DD
+        date:string // '2023-04-07',
+        description:string // 'Example transaction',
+        amount:number // 10.00,
+        currency:'NZD' // 'USD',
+        source_name: 'Example source',
+        destination_name: 'Example destination',
+        asset_id: 1
+      }[]*/
+}
+
+export async function getTransactions({accountId, dateFrom, dateTo}:GetTransactionsOptions): Promise<Transaction[]>{
     let response: Response
     const params = new URLSearchParams({
         page: "1"
         , start: dateFrom
         , end: dateTo
     })
-    const baseUrl = 'http://192.168.1.5:4575';
     const endpoint = `/api/v1/transactions?${params.toString()}`;
 
-    const config = await getUserConfig()
-
-    let accessToken:string;
-    if(!config || !config.fireflyToken || config?.fireflyToken == 'set-this-token-in-browser-storage'){
-       // await updateUserConfig({fireflyToken: ''})
-        console.log('No firefly API Token in browser storage/config')
-    }else{
-        accessToken = config.fireflyToken;
-    }
+    const config = await getFireflyConfig()
 
     try {
-        response = await fetch(baseUrl + endpoint, {
+        response = await fetch(config.address + endpoint, {
             headers: {
                 'Content-Type': 'application/vnd.api+json',
-                Authorization: `Bearer ${accessToken}`
+                Authorization: `Bearer ${config.token}`
             }
         }).catch((err) => {
             console.error(err)
@@ -120,6 +152,66 @@ export async function getTransactions(accountId:string, dateFrom:string, dateTo:
 
     return transactions.data;
 }
+
+
+export async function getAccounts(){
+    const config = await getFireflyConfig()
+    return new AccountsApi(
+        new Configuration({
+            basePath: config.address,
+            accessToken: `Bearer ${config.token}`,
+            headers: {
+                "Content-Type": "application/json",
+                accept: "application/vnd.api+json",
+            },
+            fetchApi: self.fetch.bind(self),
+        }),
+        )
+        .listAccount({})
+        .then((r: any) => {
+            console.log(JSON.stringify(r))
+            return r;
+        });
+}
+
+const dry_run = true;
+export async function setTransactions(options:SetTransactionsOptions){
+    const config = await getFireflyConfig()
+
+    const store:TransactionStore = {
+        transactions: options.transactions,
+        errorIfDuplicateHash: true,
+        applyRules: true, 
+        fireWebhooks: true,
+        groupTitle: null
+    }
+    if(dry_run){
+        console.log('DRY_RUN')
+        console.log(store)
+    }
+    return new TransactionsApi(
+        new Configuration({
+            basePath: config.address,
+            accessToken: `Bearer ${config.token}`,
+            headers: {
+                "Content-Type": "application/json",
+                accept: "application/vnd.api+json",
+            },
+            fetchApi: self.fetch.bind(self),
+        }),
+        ).storeTransaction({
+            transactionStore:store
+        })
+
+        /*
+        .listAccount({})
+        .then((r: any) => {
+            console.log(JSON.stringify(r))
+            return r;
+        });*/
+}
+
+
 
 export async function apiExtractText(url: string): Promise<SearchResult[]> {
     const response = await Browser.runtime.sendMessage({

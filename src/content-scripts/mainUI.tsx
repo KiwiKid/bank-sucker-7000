@@ -1,9 +1,11 @@
 import '../style/base.css'
-import { getANZActionPanel, getANZTransactionTable, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
+import { getANZActionPanel, getANZRows, getANZTransactionTable, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
 import Browser from 'webextension-polyfill';
+import { SetTransactionsOptions, getTransactionTypeProperty } from './api';
+import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
 
 let table: HTMLElement
 let actionsPanel: HTMLElement
@@ -81,97 +83,36 @@ async function onSubmit(event){
             endDate
         }})
 
+        const rows = getANZRows();
 
-        const rows = table.querySelectorAll("div[class*='transaction-row']")
-
-        const transactionsToSend = Array.from(rows).map((r) => {
-            return {
-                date: r.getAttribute('data-date'),
-                transactionId: r.getAttribute('data-transaction-id'),
-                type: r.querySelector('.column-type').textContent.trim(),
-                details: r.querySelector('.transaction-detail-summary').textContent.trim(),
-                amount: r.querySelector('.column-amount .money').textContent.trim(),
-                balance: r.querySelector('.column-balance .money').textContent.trim(),
-            }
-        })
+        const transactionsToSend = Array.from(rows)
         console.log(`${transactionsToSend.length} to upload (${existingTransactions.length} existing)`)
-        console.log(transactionsToSend)
 
+        const event:SetTransactionsOptions = {
+            transactions: [transactionsToSend.map(mapANZRowToFireflyTransaction)[0]]
+        }
+        
+        await Browser.runtime.sendMessage({
+            type: "set_transactions", options: event})
     }
 }
-/*async function onSubmit(event: MouseEvent | KeyboardEvent) {
-
-    if (event instanceof KeyboardEvent && event.shiftKey && event.key === 'Enter')
-        return
-
-    if (event instanceof KeyboardEvent && event.key === 'Enter' && event.isComposing) {
-        return
-    }
-
-    if ((event.type === "click" || (event instanceof KeyboardEvent && event.key === 'Enter'))) {
-
-        const rows = table.querySelectorAll("div[class*='transaction-row']")
-
-
-        const response = await 
-
-            console.log(response)
-
-            console.log(response)
-
-      /*    console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
-        console.log(rows)
-
-
-
-
-
-
-
-
-//:SearchResponse
-     /*   
-
-            console.log(response)
-    
-        if(!response){
-            console.error('got no existing budget')
-        }
-
-        console.error(`got existing tra ${response.length}`)
-    }
-
-}*/
-
-
 
 const onTableChange = function (){
     console.log('table changed')
 }
 
-console.log("\n\n\n MAIN ANZ UI RAN 0");
-
-
-
-// console.log(`MAIN ANZ UI RAN ${rootEl}\n\n ${rootEl?.innerHTML}`);
-
-
-console.log('window.onload BEF')
-
-
 setTimeout(() => {
-    console.log('setTimeout updateUI')
     updateUI()
     try {
-        console.log('MAIN ANZ UI RAN ONLOAD - 2 MutationObserver')
         const rootEl = getANZTransactionTable();
 
         new MutationObserver(() => {
-            console.log('MAIN ANZ UI RAN ONLOAD - 3 updateUI()')
+            console.log('MAIN ANZ UI RAN ONLOAD - MutationObserver:updateUI()')
             updateUI()
         }).observe(rootEl, { childList: true })
     } catch (e) {
         console.info("error --> Could not update UI:\n", e.stack)
+        console.error(e)
     }
 }, 1500)
 /*

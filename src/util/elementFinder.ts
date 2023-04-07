@@ -18,6 +18,72 @@ export function getANZTransactionTable():HTMLElement {
     return document.querySelector("div[class*='transactions-list']") 
 }
 
+
+export interface ANZRow {
+    date:Date
+    transactionId:string
+    type:string
+    destinationName:string
+    details:string
+    depositAmount?:string, 
+    creditAmount?:string
+    currency:string
+}
+export function getANZRows():ANZRow[] {
+    const rows = document.querySelectorAll("div[class*='transaction-row']");
+    if (!rows || rows.length === 0) {
+        throw new Error('No transaction rows found');
+    }
+
+    const res = Array.from(rows).map((row) => {
+        const dateText = row.getAttribute('data-date');
+        if (typeof dateText === 'undefined' || dateText === null) {
+            throw new Error('Transaction row missing date attribute');
+        }
+
+        const date = new Date(dateText);
+        if (isNaN(date.getTime())) {
+            throw new Error('Transaction row has invalid date attribute');
+        }
+
+        const transactionId = row.getAttribute('data-transaction-id');
+        if (typeof transactionId === 'undefined' || transactionId === null) {
+            throw new Error('Transaction row missing transaction ID attribute');
+        }
+
+        const typeEl = row.querySelector('.column-type');
+        if (!typeEl) {
+            throw new Error('Transaction row missing type element');
+        }
+        const type = typeEl.textContent.trim();
+
+        const destinationNameEl = row.querySelector('.transaction-detail-link');
+        if (!destinationNameEl) {
+            throw new Error('Transaction missing destinationName element');
+        }
+        const destinationName = destinationNameEl.textContent.trim();
+        
+        const detailsSummaryEl = row.querySelector('.transaction-detail-summary');
+        if(!detailsSummaryEl){
+            throw new Error('Transaction missing details element');
+        }
+        const details = detailsSummaryEl.textContent.trim();
+
+
+        const drAmountEl = row.querySelector('.column-dr .money');
+        const creditAmountEl = row.querySelector('.column-cr .money');
+        if (!drAmountEl && !creditAmountEl) {
+            throw new Error('Transaction row missing amount element');
+        }
+
+        const creditAmount = drAmountEl?.textContent?.trim().replace('$', '').replace(',','');
+        const depositAmount = creditAmountEl?.textContent?.trim().replace('$', '').replace(',','');
+
+        return { date, transactionId, type, destinationName, details, depositAmount, creditAmount, currency: 'NZD' };
+    });
+
+    return res;
+}
 export function getANZActionPanel():HTMLUListElement {
     return document.querySelector("ul[class*='transactions-action-links']")
 }

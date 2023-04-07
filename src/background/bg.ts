@@ -1,7 +1,5 @@
 import Browser from 'webextension-polyfill'
-import { getHtml } from 'src/content-scripts/ddg_search'
-import { getTransactions, getWebpageTitleAndText } from 'src/content-scripts/api'
-
+import { getTransactions,  setTransactions } from 'src/content-scripts/api'
 
 const manifest_version = Browser.runtime.getManifest().manifest_version
 
@@ -39,19 +37,23 @@ Browser.runtime.onMessage.addListener((request) => {
 })
 
 Browser.runtime.onMessage.addListener((message) => {
-    console.log('Browser.runtime.onMessage.addListener((message) => ')
+  /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
     if (message.type === "get_search_results") {
         return getHtml(message.search)
     }
 
     if (message.type === "get_webpage_text") {
         return getWebpageTitleAndText(message.url, message.html)
-    }
+    }*/
 
     if(message.type === 'get_transactions'){
         console.log('Browser.runtime.onMessage.addListener((message) => get_transactions ')
 
-        return getTransactions(message.accountId, message.options.startDate, message.options.endDate)
+        return getTransactions(message.options)
+    }
+
+    if(message.type === 'set_transactions'){
+        return setTransactions(message.options)
     }
 })
 /*
