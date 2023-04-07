@@ -23,7 +23,7 @@ export const mapANZRowToFireflyTransaction = (t:ANZRow):TransactionSplitStore =>
         amount: t.creditAmount?.length > 0 ? t.creditAmount : t.depositAmount,
         date: t.date, 
         type: getTransactionTypeProperty(t),
-        description: t.details ?? t.destinationName,
+        description: t.details?.length > 0 ? t.details : t.destinationName,
         categoryName: getTransactionCategory(t),
         destinationName: t.destinationName
     }

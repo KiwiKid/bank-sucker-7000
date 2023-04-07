@@ -85,11 +85,11 @@ async function onSubmit(event){
 
         const rows = getANZRows();
 
-        const transactionsToSend = Array.from(rows)
+        const transactionsToSend = [Array.from(rows)[0]]
         console.log(`${transactionsToSend.length} to upload (${existingTransactions.length} existing)`)
 
         const event:SetTransactionsOptions = {
-            transactions: [transactionsToSend.map(mapANZRowToFireflyTransaction)[0]]
+            transactions: transactionsToSend.map(mapANZRowToFireflyTransaction)
         }
         
         await Browser.runtime.sendMessage({
