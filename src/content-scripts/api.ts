@@ -3,7 +3,7 @@ import { parseHTML } from "linkedom"
 import Browser from "webextension-polyfill"
 import { SearchResult } from "./ddg_search"
 import { getFireflyConfig } from "src/util/userConfig"
-import { AccountsApi, Configuration, TransactionsApi, TransactionStore, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
+import { ListTransactionRequest, AccountsApi, Configuration, TransactionsApi, TransactionSingle, TransactionRead, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
 import { ANZRow } from "src/util/elementFinder"
 
 const cleanText = (text: string) =>
@@ -79,16 +79,9 @@ interface Pagination {
     links: Links;
   }
 
-  interface GetTransactionsOptions {
-    accountId: string,
-    /**
-     * YYYY-MM-DD
-     */
-    dateFrom:string,
-    /**
-     * YYYY-MM-DD
-     */
-    dateTo:string 
+  export interface GetTransactionsOptions {
+    accountName: string,
+    listOptions: ListTransactionRequest
 }
 
 export function getTransactionTypeProperty (transaction:ANZRow):TransactionTypeProperty {
@@ -119,16 +112,30 @@ export interface SetTransactionsOptions {
       }[]*/
 }
 
-export async function getTransactions({accountId, dateFrom, dateTo}:GetTransactionsOptions): Promise<Transaction[]>{
-    let response: Response
-    const params = new URLSearchParams({
-        page: "1"
-        , start: dateFrom
-        , end: dateTo
-    })
-    const endpoint = `/api/v1/transactions?${params.toString()}`;
-
+export async function getTransactions({listOptions}:GetTransactionsOptions): Promise<TransactionRead[]>{
     const config = await getFireflyConfig()
+
+    console.log('IN API:')
+    console.log(listOptions)
+
+    const existingTransactions = new TransactionsApi(
+        new Configuration({
+            basePath: config.address,
+            accessToken: `Bearer ${config.token}`,
+            headers: {
+                "Content-Type": "application/json",
+                accept: "application/vnd.api+json",
+            },
+            fetchApi: self.fetch.bind(self),
+        }),
+        ).listTransaction(listOptions).then((res) => {
+            console.log(res.data)
+            
+            return res.data
+        })
+
+        return existingTransactions;/*
+
 
     try {
         response = await fetch(config.address + endpoint, {
@@ -150,7 +157,7 @@ export async function getTransactions({accountId, dateFrom, dateTo}:GetTransacti
     }
     const transactions:ApiResponse = await response.json()
 
-    return transactions.data;
+    return transactions.data;*/
 }
 
 
@@ -174,34 +181,71 @@ export async function getAccounts(){
         });
 }
 
-const dry_run = true;
+const dry_run = false;
 export async function setTransactions(options:SetTransactionsOptions){
     const config = await getFireflyConfig()
 
-    const store:TransactionStore = {
-        transactions: options.transactions,
-        errorIfDuplicateHash: true,
-        applyRules: true, 
-        fireWebhooks: true,
-        groupTitle: null
-    }
-    if(dry_run){
+    if(dry_run) {
         console.log('DRY_RUN')
-        console.log(store)
+        console.log(options.transactions)
+        return;
     }
-    return new TransactionsApi(
-        new Configuration({
-            basePath: config.address,
-            accessToken: `Bearer ${config.token}`,
-            headers: {
-                "Content-Type": "application/json",
-                accept: "application/vnd.api+json",
-            },
-            fetchApi: self.fetch.bind(self),
-        }),
-        ).storeTransaction({
-            transactionStore:store
-        })
+
+    const saveAttempts = await Promise.allSettled<TransactionSingle|void>(options.transactions.map((trans) => {
+            new TransactionsApi(
+                new Configuration({
+                    basePath: config.address,
+                    accessToken: `Bearer ${config.token}`,
+                    headers: {
+                        "Content-Type": "application/json",
+                        accept: "application/vnd.api+json",
+                    },
+                    fetchApi: self.fetch.bind(self),
+                }),
+                ).storeTransaction({
+                    transactionStore:{
+                        transactions: [trans],
+                        errorIfDuplicateHash: true,
+                        applyRules: true, 
+                        fireWebhooks: true,
+                        groupTitle: null
+                    }
+                }).then((res) => res.data)
+                .catch(async (errRes) => {
+                    
+                    if(errRes.status === 422){
+                        const errorBody = await errRes.json()
+                        
+                        if(errorBody?.message?.startsWith('Duplicate of transaction')){
+                            console.info('Duplicate found')
+                        }else{
+                            throw new Error(errorBody?.message ?? 'Failed to store transaction')
+                        }
+                    }else {
+                        const errorBody = await errRes.json()
+
+                        console.error(errorBody)
+                        throw new Error(errorBody?.message ?? 'Failed to store transaction')
+                    }
+                })
+    }))
+
+    saveAttempts.forEach((result:any) => {
+        if (result.status === "fulfilled") {
+          console.log("Transaction saved:", result.value);
+          console.log(result.value)
+        } else {
+          console.log("Transaction save failed:", result.reason);
+        }
+      });
+
+      return saveAttempts.filter((s) => s.status === 'fulfilled').map((sa:PromiseFulfilledResult<TransactionSingle|void>) => {
+        console.log('IN API: ')
+        console.log(sa)
+        return sa
+      })
+      
+    
 
         /*
         .listAccount({})

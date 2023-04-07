@@ -1,32 +1,40 @@
 import '../style/base.css'
-import { getANZActionPanel, getANZRows, getANZTransactionTable, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
+import { getANZActionPanel, getANZRows, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
 import Browser from 'webextension-polyfill';
-import { SetTransactionsOptions, getTransactionTypeProperty } from './api';
+import { GetTransactionsOptions, SetTransactionsOptions, getTransactionTypeProperty } from './api';
 import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
+import { AccountConfig, getAccountConfig } from 'src/util/userConfig';
 
 let table: HTMLElement
 let actionsPanel: HTMLElement
 let btnSubmit:HTMLButtonElement
 let startDatePicker:HTMLInputElement
 let endDatePicker:HTMLInputElement
+let manifest_version:string
+let startDate:Date  // YYYY-MM-DD
+let endDate:Date 
 
-let startDate:string  // YYYY-MM-DD
-let endDate:string 
+// The name of the account retrieved from the page, used to get account specific config
+let accountName:string
 
 
 let existingTransactions:unknown[]
 
 async function updateUI() {
 
-    console.log('updateUI entry')
-
+    const errors = []
    // if (getANZActionPanel()) return
 
-    console.log('updateUI 2')
-
+    const accountNameEl = getAccountNameOnPage();
+    accountName = accountNameEl.textContent.trim();
+    console.log('accountName')
+    console.log(accountName)
+    console.log(accountNameEl)
+    const accountConfig = await getAccountConfig(accountName)
+    manifest_version = Browser.runtime.getManifest().version
 
     table = getANZTransactionTable()
     actionsPanel = getANZActionPanel()
@@ -34,8 +42,16 @@ async function updateUI() {
     startDatePicker = getStartDatePicker();
     endDatePicker = getEndDatePicker()
 
-    startDate = dateFormatter(startDatePicker?.value)
-    endDate = dateFormatter(endDatePicker?.value)
+    startDate = new Date(startDatePicker?.value)
+    endDate = new Date(endDatePicker?.value)
+
+    if(!startDate){
+        errors.push('Could not get start date')
+    }
+
+    if(!endDate){
+        errors.push('Could not get end date')
+    }
 
     console.log('updateUI 3')
 
@@ -64,7 +80,7 @@ async function updateUI() {
         console.log('appendChild')
 
         render(<Fragment>
-            <button onClick={onSubmit} class="actual-import">Hello World</button>{!startDate ? startDate : ''}{!endDate ? endDate : ''}
+            <button onClick={onSubmit} class="actual-import">Hello World(Account:{JSON.stringify(accountConfig, undefined, 4)} {errors.join(',')})</button>{!startDate ? startDate : ''}{!endDate ? endDate : ''}
             </Fragment>, shadowRoot)
         console.log('render')
     }else{
@@ -72,28 +88,43 @@ async function updateUI() {
     }
 
 }
-
 async function onSubmit(event){
     if (event.type === "click") {
+        const accountConfig = await getAccountConfig(accountName)
         
+      /*  const getOptions:GetTransactionsOptions = {
+            accountName,
+            listOptions: {
+                page: 1,
+                start: startDate,
+                end: endDate,
+            }
+        }
+
        existingTransactions = await Browser.runtime.sendMessage({
-        type: "get_transactions", options: {
-            accountId: 'anz',
-            startDate,
-            endDate
-        }})
+        type: "get_transactions", options: getOptions})
+*/
 
         const rows = getANZRows();
 
-        const transactionsToSend = [Array.from(rows)[0]]
-        console.log(`${transactionsToSend.length} to upload (${existingTransactions.length} existing)`)
+        const transactionsToSend = Array.from(rows)
+        console.log(`${transactionsToSend.length} to upload)`)
 
-        const event:SetTransactionsOptions = {
-            transactions: transactionsToSend.map(mapANZRowToFireflyTransaction)
+        const eventToFire:SetTransactionsOptions = {
+            transactions: transactionsToSend.map((t) => mapANZRowToFireflyTransaction(t, accountConfig, manifest_version))
         }
         
-        await Browser.runtime.sendMessage({
-            type: "set_transactions", options: event})
+        const res = await Browser.runtime.sendMessage("set_transactions", {
+            type: "set_transactions", 
+            options: eventToFire
+        }).then((res) => {
+            onTransactionUploaded(res)
+        })
+            
+
+
+        console.log('\n\nMAIN UI RES:')
+        console.log(res)
     }
 }
 
@@ -101,10 +132,20 @@ const onTableChange = function (){
     console.log('table changed')
 }
 
+const onTransactionUploaded = function (transactionInfo){
+    console.log('transactionInfo confimed uploaded')
+    console.log(transactionInfo)
+}
+
 setTimeout(() => {
     updateUI()
     try {
         const rootEl = getANZTransactionTable();
+
+        if(!rootEl){
+            console.info('No Table found, no update')
+            return;
+        }
 
         new MutationObserver(() => {
             console.log('MAIN ANZ UI RAN ONLOAD - MutationObserver:updateUI()')

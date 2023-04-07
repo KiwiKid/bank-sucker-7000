@@ -1,33 +1,35 @@
 import { getTransactionTypeProperty } from "src/content-scripts/api";
 import { ANZRow } from "./elementFinder";
 import { TransactionSplitStore } from 'firefly-iii-typescript-sdk-fetch'
+import { AccountConfig } from "./userConfig";
 
-// leg_id=transaction.get('legId'),
-// transaction_type=transaction.get('type'),
-// date=transaction.get('createdDate'),
-// description=transaction.get('description'),
-// merchant=transaction.get('merchant'),
-// amount=Amount(revolut_amount=transaction.get('amount'),
-//               currency=transaction.get('currency')),
-// category=transaction.get('category'),
-// is_vault=bool(transaction.get('vault')),
-// currency=transaction.get('currency')
-
-const getTransactionCategory = (t:ANZRow) => {    
-    return ''
+const getBaseFields = (t:ANZRow, ac:AccountConfig, version:string):TransactionSplitStore => {
+    const transactionTitle = t.details?.length > 0 ? t.details : t.title
+    return {
+        // ANZ data-transactionId is not a great unique Id
+        externalId: `${transactionTitle}_${t.date.toISOString().slice(0, 10)}`,
+        amount: t.creditAmount?.length > 0 ? t.creditAmount : t.depositAmount,
+        type: getTransactionTypeProperty(t),
+        description: transactionTitle,
+        notes: `via bank-sucker-7000`,
+        date: t.date, 
+    }
 }
 
+export const mapANZRowToFireflyTransaction = (t:ANZRow, ac:AccountConfig, version:string):TransactionSplitStore => {
+    const type = getTransactionTypeProperty(t)
 
-export const mapANZRowToFireflyTransaction = (t:ANZRow):TransactionSplitStore => {    
-    const res:TransactionSplitStore = {
-        amount: t.creditAmount?.length > 0 ? t.creditAmount : t.depositAmount,
-        date: t.date, 
-        type: getTransactionTypeProperty(t),
-        description: t.details?.length > 0 ? t.details : t.destinationName,
-        categoryName: getTransactionCategory(t),
-        destinationName: t.destinationName
+    const baseFireflyTransaction = getBaseFields(t,ac,version)
+
+    switch(type){
+        case 'deposit':
+            baseFireflyTransaction.destinationName = ac.destinationName;
+            baseFireflyTransaction.sourceName = t.title;
+            return baseFireflyTransaction;
+        case 'withdrawal':
+        case 'transfer':
+            baseFireflyTransaction.destinationName = t.title;
+            baseFireflyTransaction.sourceName = ac.destinationName;
+            return baseFireflyTransaction;
     }
-
-    return res
-
 }

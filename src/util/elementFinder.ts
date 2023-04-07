@@ -23,7 +23,7 @@ export interface ANZRow {
     date:Date
     transactionId:string
     type:string
-    destinationName:string
+    title:string
     details:string
     depositAmount?:string, 
     creditAmount?:string
@@ -57,11 +57,11 @@ export function getANZRows():ANZRow[] {
         }
         const type = typeEl.textContent.trim();
 
-        const destinationNameEl = row.querySelector('.transaction-detail-link');
-        if (!destinationNameEl) {
+        const titleEl = row.querySelector('.transaction-detail-link');
+        if (!titleEl) {
             throw new Error('Transaction missing destinationName element');
         }
-        const destinationName = destinationNameEl.textContent.trim();
+        const title = titleEl.textContent.trim();
         
         const detailsSummaryEl = row.querySelector('.transaction-detail-summary');
         if(!detailsSummaryEl){
@@ -79,13 +79,17 @@ export function getANZRows():ANZRow[] {
         const creditAmount = drAmountEl?.textContent?.trim().replace('$', '').replace(',','');
         const depositAmount = creditAmountEl?.textContent?.trim().replace('$', '').replace(',','');
 
-        return { date, transactionId, type, destinationName, details, depositAmount, creditAmount, currency: 'NZD' };
+        return { date, transactionId, type, title, details, depositAmount, creditAmount, currency: 'NZD' };
     });
 
     return res;
 }
 export function getANZActionPanel():HTMLUListElement {
     return document.querySelector("ul[class*='transactions-action-links']")
+}
+
+export function getAccountNameOnPage():HTMLElement{
+    return document.querySelector("span[class*='account-name']")
 }
 
 export function getSubmitButton():HTMLButtonElement {

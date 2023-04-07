@@ -33,8 +33,8 @@ Browser.runtime.onMessage.addListener((request) => {
     if (request === "show_options") {
         Browser.runtime.openOptionsPage()
     }
-
 })
+
 
 Browser.runtime.onMessage.addListener((message) => {
   /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
@@ -48,13 +48,16 @@ Browser.runtime.onMessage.addListener((message) => {
 
     if(message.type === 'get_transactions'){
         console.log('Browser.runtime.onMessage.addListener((message) => get_transactions ')
-
+        console.log('OPTIONS PASSED')
+        console.log(message.options)
         return getTransactions(message.options)
     }
 
     if(message.type === 'set_transactions'){
         return setTransactions(message.options)
     }
+
+    
 })
 /*
 // Firefox does not support declarativeNetRequest.updateDynamicRules yet
