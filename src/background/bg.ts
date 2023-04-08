@@ -1,5 +1,5 @@
 import Browser from 'webextension-polyfill'
-import { getTransactions,  setTransactions } from 'src/content-scripts/api'
+import { getTransactions, setTransaction } from 'src/content-scripts/api'
 
 const manifest_version = Browser.runtime.getManifest().manifest_version
 
@@ -36,7 +36,7 @@ Browser.runtime.onMessage.addListener((request) => {
 })
 
 
-Browser.runtime.onMessage.addListener((message) => {
+Browser.runtime.onMessage.addListener(async (message) => {
   /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
     if (message.type === "get_search_results") {
         return getHtml(message.search)
@@ -54,7 +54,19 @@ Browser.runtime.onMessage.addListener((message) => {
     }
 
     if(message.type === 'set_transactions'){
-        return setTransactions(message.options)
+        return setTransaction(message.options)
+        
+        /*.then((trans) => {
+            console.error('setTransaction:then-block')
+
+            return Browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+                if (tabs[0]?.url?.startsWith("https://secure.anz.co.nz/")) {
+                    Browser.tabs.sendMessage(tabs[0].id, { type: "toggle-web-access", res: trans, trans: message.options})
+                }else{
+                    console.error('Could not send message - no active tab?')
+                }
+            })
+        })*/
     }
 
     
@@ -69,7 +81,7 @@ Browser.declarativeNetRequest.updateDynamicRules({
             action: {
                 type: "modifyHeaders",
                 requestHeaders: [
-                    {
+                    {  
                         header: "Origin",
                         operation: "set",
                         value: "https://lite.duckduckgo.com"

@@ -7,6 +7,8 @@ import Browser from 'webextension-polyfill';
 import { GetTransactionsOptions, SetTransactionsOptions, getTransactionTypeProperty } from './api';
 import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
 import { AccountConfig, getAccountConfig } from 'src/util/userConfig';
+import { useEffect } from 'preact/hooks';
+import ImportButton from 'src/components/ImportButton';
 
 let table: HTMLElement
 let actionsPanel: HTMLElement
@@ -20,8 +22,13 @@ let endDate:Date
 // The name of the account retrieved from the page, used to get account specific config
 let accountName:string
 
+/*Browser.runtime.onMessageExternal.addListener((message) => {
 
-let existingTransactions:unknown[]
+    if(message.type == 'set_transaction_imported'){
+        onTransactionUploaded(message.date, message.amount)
+    }
+
+})*/
 
 async function updateUI() {
 
@@ -45,6 +52,8 @@ async function updateUI() {
     startDate = new Date(startDatePicker?.value)
     endDate = new Date(endDatePicker?.value)
 
+
+    
     if(!startDate){
         errors.push('Could not get start date')
     }
@@ -79,8 +88,7 @@ async function updateUI() {
         actionsPanel.appendChild(shadowRootDiv)
         console.log('appendChild')
 
-        render(<Fragment>
-            <button onClick={onSubmit} class="actual-import">Hello World(Account:{JSON.stringify(accountConfig, undefined, 4)} {errors.join(',')})</button>{!startDate ? startDate : ''}{!endDate ? endDate : ''}
+        render(<Fragment><ImportButton onClick={onSubmit} />            
             </Fragment>, shadowRoot)
         console.log('render')
     }else{
@@ -110,21 +118,31 @@ async function onSubmit(event){
         const transactionsToSend = Array.from(rows)
         console.log(`${transactionsToSend.length} to upload)`)
 
-        const eventToFire:SetTransactionsOptions = {
-            transactions: transactionsToSend.map((t) => mapANZRowToFireflyTransaction(t, accountConfig, manifest_version))
-        }
-        
-        const res = await Browser.runtime.sendMessage("set_transactions", {
-            type: "set_transactions", 
-            options: eventToFire
-        }).then((res) => {
-            onTransactionUploaded(res)
+        transactionsToSend.map((t) => mapANZRowToFireflyTransaction(t, accountConfig, manifest_version)).forEach((t) => {
+            const eventToFire:SetTransactionsOptions = {
+                transaction: t
+            }
+            Browser.runtime.sendMessage({
+                type: "set_transactions", 
+                options: eventToFire
+            }).then((res) => {
+                console.log('\n\nMAIN UI RES:')
+                console.log(res)
+                console.log(eventToFire)
+            }).catch((err) => {
+                console.error(`\n\nMAIN UI RES - error`)
+                console.log(err)
+                console.log(eventToFire)
+            })
+
+          //  console.log('\n\nMAIN UI RES awaited:')
+          //  console.log(res)
         })
+
+
             
 
 
-        console.log('\n\nMAIN UI RES:')
-        console.log(res)
     }
 }
 
@@ -132,9 +150,9 @@ const onTableChange = function (){
     console.log('table changed')
 }
 
-const onTransactionUploaded = function (transactionInfo){
-    console.log('transactionInfo confimed uploaded')
-    console.log(transactionInfo)
+const onTransactionUploaded = function (date, title){
+    console.log('\n\n\ntransactionInfo confimed uploaded\n\n')
+    console.log({date, title})
 }
 
 setTimeout(() => {

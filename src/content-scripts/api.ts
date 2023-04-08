@@ -3,7 +3,7 @@ import { parseHTML } from "linkedom"
 import Browser from "webextension-polyfill"
 import { SearchResult } from "./ddg_search"
 import { getFireflyConfig } from "src/util/userConfig"
-import { ListTransactionRequest, AccountsApi, Configuration, TransactionsApi, TransactionSingle, TransactionRead, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
+import { ListTransactionRequest, AccountsApi, Configuration, TransactionsApi, TransactionRead, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
 import { ANZRow } from "src/util/elementFinder"
 
 const cleanText = (text: string) =>
@@ -98,7 +98,7 @@ export function getTransactionTypeProperty (transaction:ANZRow):TransactionTypeP
 }
 
 export interface SetTransactionsOptions {
-    transactions:TransactionSplitStore[] 
+    transaction:TransactionSplitStore
     
     /*{
          * YYYY-MM-DD
@@ -182,17 +182,17 @@ export async function getAccounts(){
 }
 
 const dry_run = false;
-export async function setTransactions(options:SetTransactionsOptions){
+
+export async function setTransaction(options:SetTransactionsOptions):Promise<unknown> {
     const config = await getFireflyConfig()
 
     if(dry_run) {
         console.log('DRY_RUN')
-        console.log(options.transactions)
+        console.log(options.transaction)
         return;
     }
-
-    const saveAttempts = await Promise.allSettled<TransactionSingle|void>(options.transactions.map((trans) => {
-            new TransactionsApi(
+    try {
+           return new TransactionsApi(
                 new Configuration({
                     basePath: config.address,
                     accessToken: `Bearer ${config.token}`,
@@ -204,47 +204,74 @@ export async function setTransactions(options:SetTransactionsOptions){
                 }),
                 ).storeTransaction({
                     transactionStore:{
-                        transactions: [trans],
+                        transactions: [options.transaction],
                         errorIfDuplicateHash: true,
                         applyRules: true, 
                         fireWebhooks: true,
                         groupTitle: null
                     }
-                }).then((res) => res.data)
-                .catch(async (errRes) => {
-                    
-                    if(errRes.status === 422){
-                        const errorBody = await errRes.json()
-                        
-                        if(errorBody?.message?.startsWith('Duplicate of transaction')){
-                            console.info('Duplicate found')
-                        }else{
-                            throw new Error(errorBody?.message ?? 'Failed to store transaction')
+                }).then(() => {
+                    //    console.log('RES IN API:')
+                   //     console.log(options.transaction)
+                        return {
+                            transaction: options.transaction,
+                            status: 'uploaded-1',
                         }
-                    }else {
-                        const errorBody = await errRes.json()
+                    }).catch((errRes) => {
+                        
 
-                        console.error(errorBody)
-                        throw new Error(errorBody?.message ?? 'Failed to store transaction')
-                    }
-                })
-    }))
+                        if(errRes?.status === 422){
+                            const errorBody = errRes.json()
+                            if(errorBody?.message?.startsWith('Duplicate of transaction')){
+                                /*const response = await Browser.runtime.sendMessage({
+                                    type: "get_webpage_text",
+                                    options: {url: 'url'}
+                                })*/
+                                /*browser.tabs.query({active: true, currentWindow: true}).then((tabs:unknown) => {
+                                    browser.tabs.sendMessage(tabs[0].id, "set_transaction_imported", {}).then((res) => console.log(res))
+                                })*/
 
+                //               console.info('Duplicate found')
+                //               console.info(options.transaction)
+                                return {
+                                    transaction: options.transaction,
+                                    status: 'uploaded-2'
+                                }
+                            }
+                            return {
+                                transaction: options.transaction,
+                                status: 'failed-3',
+                                message: errorBody?.message ?? 'Failed to store transaction'
+                            }
+                        
+                        }
+                //        console.error(errorBody)
+                        return {
+                            transaction: options.transaction,
+                            status: 'failed-4',
+                        }
+                    })
+
+                }catch(err){
+                    console.error('SetTransaction outer catch', err)
+                }
+    /*console.log(`\n\n\n\n\saveAttemptssaveAttemptssaveAttemptssaveAttemptsn\n\n\n\n`)
     saveAttempts.forEach((result:any) => {
         if (result.status === "fulfilled") {
-          console.log("Transaction saved:", result.value);
-          console.log(result.value)
+          console.log("Transaction saved:");
+          console.log(result)
         } else {
           console.log("Transaction save failed:", result.reason);
         }
+        console.log(result)
       });
 
-      return saveAttempts.filter((s) => s.status === 'fulfilled').map((sa:PromiseFulfilledResult<TransactionSingle|void>) => {
+      const res2 = saveAttempts.filter((s) => s.status === 'fulfilled').map((sa:PromiseFulfilledResult<TransactionSingle|void>) => {
         console.log('IN API: ')
         console.log(sa)
         return sa
-      })
-      
+      })*/
+    
     
 
         /*
