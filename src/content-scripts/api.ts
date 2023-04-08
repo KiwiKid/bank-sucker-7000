@@ -189,7 +189,7 @@ enum TransResult {
     Failed4 = 'failed-4',
     Failed5 = 'failed-5',
     Existing = 'existing',
-    Uploaded1 = 'uploaded',
+    Uploaded = 'uploaded',
 } 
 interface TransactionResults {
     transaction: TransactionSplitStore,
@@ -229,7 +229,7 @@ export async function setTransaction(options:SetTransactionsOptions):Promise<Tra
                    //     console.log(options.transaction)
                         return {
                             transaction: options.transaction,
-                            status: TransResult.Uploaded1,
+                            status: TransResult.Uploaded,
                         }
                     }).catch(async (errRes) => {
                         

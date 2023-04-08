@@ -135,7 +135,9 @@ async function onSubmit(event){
                 
                 const updatedRow = getSpecificTransactionRow(t.orginalRow.transactionId)
                 if(res.status === 'uploaded'){
-                    updatedRow.style.backgroundColor = 'green'
+                    updatedRow.style.backgroundColor = '#b8ffab'
+                }else if(res.status == 'existing'){
+                    updatedRow.style.backgroundColor = '#ffd2ab'
                 }else{
                     const errorElement = document.createElement('div');
                     errorElement.textContent = res.message;

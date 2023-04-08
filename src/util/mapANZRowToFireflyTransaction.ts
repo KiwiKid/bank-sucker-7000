@@ -5,12 +5,13 @@ import { AccountConfig } from "./userConfig";
 
 const getBaseFields = (t:ANZRow, ac:AccountConfig, version:string):TransactionSplitStore => {
     const transactionTitle = t.title?.length > 0 ? t.title : t.details 
+    const isWithdrawal = t.depositAmount?.length > 0
     return {
         // ANZ data-transactionId is not a great unique Id
         externalId: `${transactionTitle}_${t.date.toISOString().slice(0, 10)}`,
-        amount: t.creditAmount?.length > 0 ? t.creditAmount : t.depositAmount,
+        amount:  isWithdrawal ? t.depositAmount : t.creditAmount,
         type: getTransactionTypeProperty(t),
-        description: transactionTitle,
+        description: isWithdrawal ? t.title : transactionTitle,
         notes: `via bank-sucker-7000`,
         date: t.date, 
     }
