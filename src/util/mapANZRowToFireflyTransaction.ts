@@ -4,7 +4,7 @@ import { TransactionSplitStore } from 'firefly-iii-typescript-sdk-fetch'
 import { AccountConfig } from "./userConfig";
 
 const getBaseFields = (t:ANZRow, ac:AccountConfig, version:string):TransactionSplitStore => {
-    const transactionTitle = t.details?.length > 0 ? t.details : t.title
+    const transactionTitle = t.title?.length > 0 ? t.title : t.details 
     return {
         // ANZ data-transactionId is not a great unique Id
         externalId: `${transactionTitle}_${t.date.toISOString().slice(0, 10)}`,

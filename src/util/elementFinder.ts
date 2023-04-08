@@ -105,6 +105,11 @@ export function getEndDatePicker():HTMLInputElement {
 }
 
 
+export function getSpecificTransactionRow(transactionId:string):HTMLElement{
+    return document.querySelector(`div[data-transaction-id="${transactionId}"]`)
+}
+
+
 //export function getRootANZElement():HTMLElement {
 //    return document.querySelector("div[class*='container-main']")/
 //}

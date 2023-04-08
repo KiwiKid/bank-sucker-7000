@@ -1,5 +1,5 @@
 import '../style/base.css'
-import { getANZActionPanel, getANZRows, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
+import { getANZActionPanel, getANZRows, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getSpecificTransactionRow, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
@@ -118,9 +118,12 @@ async function onSubmit(event){
         const transactionsToSend = Array.from(rows)
         console.log(`${transactionsToSend.length} to upload)`)
 
-        transactionsToSend.map((t) => mapANZRowToFireflyTransaction(t, accountConfig, manifest_version)).forEach((t) => {
+        transactionsToSend.map((t) => ({
+            orginalRow: t,
+               tToSend: mapANZRowToFireflyTransaction(t, accountConfig, manifest_version)
+        })).forEach((t) => {
             const eventToFire:SetTransactionsOptions = {
-                transaction: t
+                transaction: t.tToSend
             }
             Browser.runtime.sendMessage({
                 type: "set_transactions", 
@@ -129,6 +132,19 @@ async function onSubmit(event){
                 console.log('\n\nMAIN UI RES:')
                 console.log(res)
                 console.log(eventToFire)
+                
+                const updatedRow = getSpecificTransactionRow(t.orginalRow.transactionId)
+                if(res.status === 'uploaded'){
+                    updatedRow.style.backgroundColor = 'green'
+                }else{
+                    const errorElement = document.createElement('div');
+                    errorElement.textContent = res.message;
+                    errorElement.style.color = 'red';
+                    updatedRow.parentNode?.appendChild(errorElement);
+                    updatedRow.style.backgroundColor = 'red'
+                }
+                
+
             }).catch((err) => {
                 console.error(`\n\nMAIN UI RES - error`)
                 console.log(err)

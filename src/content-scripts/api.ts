@@ -183,7 +183,21 @@ export async function getAccounts(){
 
 const dry_run = false;
 
-export async function setTransaction(options:SetTransactionsOptions):Promise<unknown> {
+enum TransResult {
+    Failed2 = 'failed-2',
+    Failed3 = 'failed-3',
+    Failed4 = 'failed-4',
+    Failed5 = 'failed-5',
+    Existing = 'existing',
+    Uploaded1 = 'uploaded',
+} 
+interface TransactionResults {
+    transaction: TransactionSplitStore,
+    status: TransResult,
+    message?: string
+}
+
+export async function setTransaction(options:SetTransactionsOptions):Promise<TransactionResults> {
     const config = await getFireflyConfig()
 
     if(dry_run) {
@@ -215,13 +229,15 @@ export async function setTransaction(options:SetTransactionsOptions):Promise<unk
                    //     console.log(options.transaction)
                         return {
                             transaction: options.transaction,
-                            status: 'uploaded-1',
+                            status: TransResult.Uploaded1,
                         }
-                    }).catch((errRes) => {
+                    }).catch(async (errRes) => {
                         
+                        const errorBody = await errRes.json()
 
                         if(errRes?.status === 422){
-                            const errorBody = errRes.json()
+                            console.log('errorBodyerrorBodyerrorBodyerrorBodyerrorBody')
+                            console.log(errorBody)
                             if(errorBody?.message?.startsWith('Duplicate of transaction')){
                                 /*const response = await Browser.runtime.sendMessage({
                                     type: "get_webpage_text",
@@ -235,20 +251,29 @@ export async function setTransaction(options:SetTransactionsOptions):Promise<unk
                 //               console.info(options.transaction)
                                 return {
                                     transaction: options.transaction,
-                                    status: 'uploaded-2'
+                                    status: TransResult.Existing
+                                }
+                            }else if(typeof errorBody?.message !== 'undefined'){
+                                console.log('Failed 3')
+                                console.error(errorBody)
+                                return {
+                                    transaction: options.transaction,
+                                    status: TransResult.Failed3,
+                                    message: errorBody?.message ?? 'Failed to store transaction'
                                 }
                             }
-                            return {
-                                transaction: options.transaction,
-                                status: 'failed-3',
-                                message: errorBody?.message ?? 'Failed to store transaction'
-                            }
-                        
+                            console.log('Failed 4')
+                                console.error(errorBody)
+                                return {
+                                    transaction: options.transaction,
+                                    status: TransResult.Failed4,
+                                    message: errorBody?.message ?? 'Failed to store transaction'
+                                }
                         }
                 //        console.error(errorBody)
                         return {
                             transaction: options.transaction,
-                            status: 'failed-4',
+                            status: TransResult.Failed5,
                         }
                     })
 
