@@ -99,7 +99,7 @@ async function updateUI() {
         // Set the style for the div element
         importButtonContainer.style.position = 'fixed';
         importButtonContainer.style.left = '5%';
-        importButtonContainer.style.top = '50%';
+        importButtonContainer.style.top = '20%';
         importButtonContainer.style.height = '30rem';
         importButtonContainer.style.width = '10rem';
         importButtonContainer.style.transform = 'translate(-50%, -50%)';

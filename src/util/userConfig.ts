@@ -15,8 +15,8 @@ const defaultConfig = {
         address: 'http://url+port-to-firefly-no-end-slash',
         accountExportConfig: [
             {
-                destinationName: 'Anz',
-                accountNameOnSite: 'Main Account',
+                fireflyAccountName: 'Anz',
+                anzAccountNameOnSite: 'Main Account',
             }
         ]
     }
@@ -40,12 +40,12 @@ export async function getAccountConfig(accountName:string): Promise<AccountConfi
     if(!fireflyConfig.accountExportConfig){
         console.error('Could not find matching account')
     }
-    const currentAccount = fireflyConfig?.accountExportConfig?.filter((ac) => ac.accountNameOnSite === accountName)
+    const currentAccount = fireflyConfig?.accountExportConfig?.filter((ac) => ac.anzAccountNameOnSite === accountName)
     if(currentAccount?.length > 0){
         return currentAccount[0]
     }
     console.error(`could not find matching account for ${accountName}
-    (checked ${fireflyConfig?.accountExportConfig?.length > 0 ? fireflyConfig?.accountExportConfig?.map((aec) => `${aec.accountNameOnSite}`).join() : 'none in config'})`)
+    (checked ${fireflyConfig?.accountExportConfig?.length > 0 ? fireflyConfig?.accountExportConfig?.map((aec) => `${aec.anzAccountNameOnSite}`).join() : 'none in config'})`)
 }
 
 export async function getFireflyConfig(): Promise<FireflyConfig> {

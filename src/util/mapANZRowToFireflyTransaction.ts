@@ -24,13 +24,13 @@ export const mapANZRowToFireflyTransaction = (t:ANZRow, ac:AccountConfig, versio
 
     switch(type){
         case 'deposit':
-            baseFireflyTransaction.destinationName = ac.destinationName;
+            baseFireflyTransaction.destinationName = ac.fireflyAccountName;
             baseFireflyTransaction.sourceName = t.title;
             return baseFireflyTransaction;
         case 'withdrawal':
         case 'transfer':
             baseFireflyTransaction.destinationName = t.title;
-            baseFireflyTransaction.sourceName = ac.destinationName;
+            baseFireflyTransaction.sourceName = ac.fireflyAccountName;
             return baseFireflyTransaction;
     }
 }

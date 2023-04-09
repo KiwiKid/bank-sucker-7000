@@ -63,7 +63,7 @@ export function getANZRows():ANZRow[] {
 
         const titleEl = row.querySelector('.transaction-detail-link');
         if (!titleEl) {
-            throw new Error('Transaction missing destinationName element');
+            throw new Error('Transaction missing titleEl element');
         }
         const title = titleEl.textContent.trim();
         
