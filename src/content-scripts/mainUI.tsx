@@ -68,8 +68,8 @@ async function updateUI() {
     startDatePicker = getStartDatePicker();
     endDatePicker = getEndDatePicker()
 
-    startDate = new Date(startDatePicker?.value)
-    endDate = new Date(endDatePicker?.value)
+    startDate = new Date(Date.parse(`${startDatePicker?.value?.replace('/', '-')}T00:00:00Z`)) //2023-04-09T15:30:00Z
+    endDate = new Date(Date.parse(`${endDatePicker?.value?.replace('/', '-')}T00:00:00Z`)) //2023-04-09T15:30:00Z
 
 
     
@@ -154,7 +154,7 @@ async function updateUI() {
 async function onSubmit(event){
     if (event.type === "click") {
         importButton.style.backgroundColor = 'gray'
-        const accountConfig = await getAccountConfig(accountName)
+        const config = await getAccountConfig(accountName)
         
         const rows = getANZRows();
         
@@ -164,12 +164,13 @@ async function onSubmit(event){
 
         transactionsToSend.map((t) => ({
             orginalRow: t,
-               tToSend: mapANZRowToFireflyTransaction(t, accountConfig, manifest_version)
+               tToSend: mapANZRowToFireflyTransaction(t, config, manifest_version)
         })).forEach((t) => {
             const updatedRow = getSpecificTransactionRow(t.orginalRow.transactionId)
             updatedRow.style.backgroundColor = '#bffcc0'
             const eventToFire:SetTransactionsOptions = {
-                transaction: t.tToSend
+                transaction: t.tToSend,
+                dry_run: config.fireflyConfig.dry_run
             }
             Browser.runtime.sendMessage({
                 type: "set_transactions", 
@@ -186,7 +187,7 @@ async function onSubmit(event){
                     updatedRow.style.backgroundColor = '#ffd2ab'
 
                     const existingElement = document.createElement("div");
-                    existingElement.textContent = res.status;
+                    existingElement.textContent = `${res.message}`;
                     existingElement.style.color = "orange";
                     updatedRow.appendChild(existingElement)
                 }else{

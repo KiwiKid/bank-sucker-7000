@@ -11,6 +11,7 @@ const defaultConfig = {
     language: getSystemLanguage(),
     promptUUID: 'default',
     firefly:{
+        dry_run: true,
         token: 'set-this-token-in-browser-storage',
         address: 'http://url+port-to-firefly-no-end-slash',
         accountExportConfig: [
@@ -27,7 +28,10 @@ export type UserConfig = typeof defaultConfig
 export type FireflyConfig = typeof defaultConfig.firefly
 
 
-export type AccountConfig = typeof defaultConfig.firefly.accountExportConfig[0]
+export type AccountConfig = {
+    accountConfig: typeof defaultConfig.firefly.accountExportConfig[0]
+    fireflyConfig: FireflyConfig
+}
 
 export async function getUserConfig(): Promise<UserConfig> {
     const config = await Browser.storage.sync.get(defaultConfig)
@@ -42,7 +46,10 @@ export async function getAccountConfig(accountName:string): Promise<AccountConfi
     }
     const currentAccount = fireflyConfig?.accountExportConfig?.filter((ac) => ac.anzAccountNameOnSite === accountName)
     if(currentAccount?.length > 0){
-        return currentAccount[0]
+        return {
+            fireflyConfig,
+            accountConfig: currentAccount[0]
+        }
     }
     console.error(`could not find matching account for ${accountName}
     (checked ${fireflyConfig?.accountExportConfig?.length > 0 ? fireflyConfig?.accountExportConfig?.map((aec) => `${aec.anzAccountNameOnSite}`).join() : 'none in config'})`)

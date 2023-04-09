@@ -4,15 +4,18 @@ import { TransactionSplitStore } from 'firefly-iii-typescript-sdk-fetch'
 import { AccountConfig } from "./userConfig";
 
 const getBaseFields = (t:ANZRow, ac:AccountConfig, version:string):TransactionSplitStore => {
-    const transactionTitle = t.title?.length > 0 ? t.title : t.details 
     const isWithdrawal = t.depositAmount?.length > 0
+    const amount = isWithdrawal ? t.depositAmount : t.creditAmount
+    // Ensure transactions created are unique:
+    const transactionNote = `via bank-sucker-7000_${t.title?.length > 0 ? t.title : t.details}_${amount}_${t.date.toISOString().slice(0, 10)}`
+
     return {
         // ANZ data-transactionId is not a great unique Id
-        externalId: `${transactionTitle}_${t.date.toISOString().slice(0, 10)}`,
-        amount:  isWithdrawal ? t.depositAmount : t.creditAmount,
+        externalId: transactionNote,
+        amount: amount,
         type: getTransactionTypeProperty(t),
-        description: isWithdrawal ? t.title : transactionTitle,
-        notes: `via bank-sucker-7000_${t.date.toISOString().slice(0, 10)}`,
+        description: t.title?.length > 0 ? t.title : t.details,
+        notes: `${t.date.toISOString().slice(0, 10)}`,
         date: t.date, 
     }
 }
@@ -24,13 +27,13 @@ export const mapANZRowToFireflyTransaction = (t:ANZRow, ac:AccountConfig, versio
 
     switch(type){
         case 'deposit':
-            baseFireflyTransaction.destinationName = ac.fireflyAccountName;
+            baseFireflyTransaction.destinationName = ac.accountConfig.fireflyAccountName;
             baseFireflyTransaction.sourceName = t.title;
             return baseFireflyTransaction;
         case 'withdrawal':
         case 'transfer':
             baseFireflyTransaction.destinationName = t.title;
-            baseFireflyTransaction.sourceName = ac.fireflyAccountName;
+            baseFireflyTransaction.sourceName = ac.accountConfig.fireflyAccountName;
             return baseFireflyTransaction;
     }
 }

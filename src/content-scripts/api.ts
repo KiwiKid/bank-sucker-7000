@@ -99,7 +99,7 @@ export function getTransactionTypeProperty (transaction:ANZRow):TransactionTypeP
 
 export interface SetTransactionsOptions {
     transaction:TransactionSplitStore
-    
+    dry_run:boolean
     /*{
          * YYYY-MM-DD
         date:string // '2023-04-07',
@@ -181,8 +181,6 @@ export async function getAccounts(){
         });
 }
 
-const dry_run = false;
-
 enum TransResult {
     Failed2 = 'failed-2',
     Failed3 = 'failed-3',
@@ -202,11 +200,12 @@ interface TransactionResults {
 export async function setTransaction(options:SetTransactionsOptions):Promise<TransactionResults> {
     const config = await getFireflyConfig()
 
-    if(dry_run) {
+    if(options.dry_run) {
         console.log('DRY_RUN')
         console.log(options.transaction)
         return;
     }
+    console.log(options.transaction)
     try {
            return new TransactionsApi(
                 new Configuration({
@@ -264,7 +263,8 @@ export async function setTransaction(options:SetTransactionsOptions):Promise<Tra
                 //               console.info(options.transaction)
                                 return {
                                     transaction: options.transaction,
-                                    status: TransResult.Existing
+                                    status: TransResult.Existing,
+                                    message: JSON.stringify(errorBody?.errors)
                                 }
                             }else if(typeof errorBody?.message !== 'undefined'){
                                 console.log('Failed 3')
