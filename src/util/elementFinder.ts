@@ -27,7 +27,7 @@ export function getANZTransactionTable():HTMLElement {
 
 
 
-    
+    /*
 
 export function getANZActionPanel():HTMLUListElement {
     return document.querySelector("div[class*='transactions-action-panels']")

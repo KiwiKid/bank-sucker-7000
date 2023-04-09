@@ -17,7 +17,7 @@ export interface AccountName {
 }
 
 export interface SelectorSet {
-    accountName:[string, string]
+    accountName:string
     rows:string
     date:string
     details:string
@@ -31,15 +31,26 @@ export interface SelectorSet {
 
 
 
+
 class ElementFinder {
     selectorSet:SelectorSet
     
     constructor(selectorSet:SelectorSet){
         this.selectorSet = selectorSet;
     }
+    
+    getStartDate():Date{
+        const element = document.querySelector("input[class*='date-range-start-date']")
+        return new Date(Date.parse(`${element.textContent?.trim().replace('/', '-')}T00:00:00Z`)) //2023-04-09T15:30:00Z
+    }
+
+    getEndDate():Date{
+        const element = document.querySelector("input[class*='date-range-end-date']")
+        return new Date(Date.parse(`${element.textContent?.trim().replace('/', '-')}T00:00:00Z`))
+    }
 
     getAccountNameOnPage(): HTMLElement {
-        return document.querySelector(this.selectorSet.accountName[0]).querySelector(this.selectorSet.accountName[1])
+        return document.querySelector(this.selectorSet.accountName)
     }
     getRows(): TransactionRow[] {
 

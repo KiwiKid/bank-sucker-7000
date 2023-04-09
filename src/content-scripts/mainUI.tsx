@@ -1,5 +1,5 @@
 import '../style/base.css'
-import { getANZAccountStatus, getANZActionPanel, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getLoadMoreContainer, getSpecificTransactionRow, getStartDatePicker, getSubmitButton, getTopMenuBar } from "src/util/elementFinder"
+import { getANZTransactionTable,  getEndDatePicker,  getStartDatePicker} from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
@@ -19,7 +19,7 @@ let manifest_version:string
 let startDate:Date  // YYYY-MM-DD
 let endDate:Date 
 const importButton = document.createElement('button');
-let topMenuBar:HTMLElement
+//let topMenuBar:HTMLElement
 let importButtonContainer:HTMLElement
 // The name of the account retrieved from the page, used to get account specific config
 let accountName:string
@@ -33,14 +33,16 @@ async function contentLoaded (){
 }
 
 const targetNode = document.body;
-
+console.log('WOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\n')
 // create an observer instance
 const observer = new MutationObserver((mutationsList, observer) => {
     for(const mutation of mutationsList) {
         if (mutation.type === 'childList') {
             for(const addedNode of mutation.addedNodes) {
-            //    console.log(addedNode)
-                if (addedNode?.classList && addedNode?.classList.contains('transactions-list')) {
+                console.log(addedNode)
+                if (addedNode?.classList && addedNode?.classList.contains('transactions-list') ||
+                addedNode.classList && addedNode.classList.contains('MuiFab-primary')
+                ) {
                     updateUI()
                 }
             }
@@ -54,7 +56,7 @@ observer.observe(targetNode, { childList: true, subtree: true });
 const getSelectorSet = ():SelectorSet => {
     if(window.location.origin.includes('anz.co.nz')){
         return {
-            accountName: ["h1[class='account-name-heading']", "span[class='account-name']"],
+            accountName: "h1[class='account-name-heading'] span[class='account-name']",
             rows: "div[class*='transaction-row']",
             title: '.transaction-detail-link',
             date: "div[class*='column-postdate']",
@@ -66,7 +68,7 @@ const getSelectorSet = ():SelectorSet => {
 
     if(window.location.origin.includes('app.simplicity.kiwi')){
         return {
-            accountName: ["div[class='MuiBox-root']", "span[class='MuiTypography-subtitle1']"],
+            accountName: "div[class='MuiBox-root'] span[class='MuiTypography-subtitle1']",
             rows: "tr[class*='MuiTableRow-root']",
             date: "table tr th div div",
             title: 'table tr th subtitle2',
@@ -81,7 +83,7 @@ const getSelectorSet = ():SelectorSet => {
 async function updateUI() {
 
 
-
+    console.log('updateUI')
     elementFinder = new ElementFinder(getSelectorSet());
 
     const errors = []
@@ -90,7 +92,7 @@ async function updateUI() {
     const accountConfig = await getAccountConfig(accountName)
     manifest_version = Browser.runtime.getManifest().version
 
-    topMenuBar = getTopMenuBar();
+   // topMenuBar = getTopMenuBar();
 
     table = getANZTransactionTable()
     //loadMoreContainer = getLoadMoreContainer()
@@ -98,8 +100,7 @@ async function updateUI() {
     startDatePicker = getStartDatePicker();
     endDatePicker = getEndDatePicker()
 
-    startDate = new Date(Date.parse(`${startDatePicker?.value?.replace('/', '-')}T00:00:00Z`)) //2023-04-09T15:30:00Z
-    endDate = new Date(Date.parse(`${endDatePicker?.value?.replace('/', '-')}T00:00:00Z`)) //2023-04-09T15:30:00Z
+ //2023-04-09T15:30:00Z
 
 
     
@@ -246,6 +247,3 @@ document.addEventListener("onload", () => {
 document.addEventListener("DOMContentLoaded", () => {
     console.log('DOMContentLoaded');
 })
-console.log(window.onload)
-
-console.log('window.onload AFT')
