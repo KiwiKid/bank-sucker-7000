@@ -29,7 +29,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://secure.anz.co.nz/*"
+        "https://secure.anz.co.nz/*",
+        "https://app.simplicity.kiwi/*"
       ],
       "js": [
         "content-scripts/mainUI.js"

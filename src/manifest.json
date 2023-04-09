@@ -23,7 +23,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://secure.anz.co.nz/*"
+        "https://secure.anz.co.nz/*",
+        "https://app.simplicity.kiwi/*"
       ],
       "js": [
         "content-scripts/mainUI.js"
@@ -44,7 +45,8 @@
         "icons/icon48.png"
       ],
       "matches": [
-        "https://secure.anz.co.nz/*"
+        "https://secure.anz.co.nz/*",
+        "https://app.simplicity.kiwi/*"
       ]
     }
   ],

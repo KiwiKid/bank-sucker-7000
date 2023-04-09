@@ -1,5 +1,5 @@
 import '../style/base.css'
-import { getANZAccountStatus, getANZActionPanel, getANZRows, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getLoadMoreContainer, getSpecificTransactionRow, getStartDatePicker, getSubmitButton, getTopMenuBar } from "src/util/elementFinder"
+import { getANZAccountStatus, getANZActionPanel, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getLoadMoreContainer, getSpecificTransactionRow, getStartDatePicker, getSubmitButton, getTopMenuBar } from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
@@ -9,6 +9,7 @@ import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransa
 import {  getAccountConfig } from 'src/util/userConfig';
 import ImportButton from 'src/components/ImportButton';
 import SettingsConfig from 'src/components/SettingsConfig';
+import ElementFinder, { SelectorSet } from 'src/util/anzElementFinder';
 
 let table: HTMLElement
 //let btnSubmit:HTMLButtonElement
@@ -24,6 +25,8 @@ let importButtonContainer:HTMLElement
 let accountName:string
 
 let accountStatusElement:HTMLElement;
+
+let elementFinder:ElementFinder;
 
 async function contentLoaded (){
     console.log('contentLoaded')
@@ -48,15 +51,42 @@ const observer = new MutationObserver((mutationsList, observer) => {
 // start observing the target node for mutations
 observer.observe(targetNode, { childList: true, subtree: true });
 
+const getSelectorSet = ():SelectorSet => {
+    if(window.location.origin.includes('anz.co.nz')){
+        return {
+            accountName: ["h1[class='account-name-heading']", "span[class='account-name']"],
+            rows: "div[class*='transaction-row']",
+            title: '.transaction-detail-link',
+            date: "div[class*='column-postdate']",
+            details: '.transaction-detail-summary',
+            drAmount: '.column-dr .money',
+            crAmount: '.column-cr .money'
+        }
+    }
+
+    if(window.location.origin.includes('app.simplicity.kiwi')){
+        return {
+            accountName: ["div[class='MuiBox-root']", "span[class='MuiTypography-subtitle1']"],
+            rows: "tr[class*='MuiTableRow-root']",
+            date: "table tr th div div",
+            title: 'table tr th subtitle2',
+  //          type: ".column-type",
+            details: '.table tr th subtitle2',
+            crAmount: 'table tr:first-child td:nth-child(2)'
+        }
+    }
+}
+
 
 async function updateUI() {
 
+
+
+    elementFinder = new ElementFinder(getSelectorSet());
+
     const errors = []
-    const accountNameEl = getAccountNameOnPage();
+    const accountNameEl = elementFinder.getAccountNameOnPage();
     accountName = accountNameEl.textContent.trim();
-    console.log('accountName')
-    console.log(accountName)
-    console.log(accountNameEl)
     const accountConfig = await getAccountConfig(accountName)
     manifest_version = Browser.runtime.getManifest().version
 
@@ -126,6 +156,7 @@ async function updateUI() {
             accountStatusElement.textContent = '\u2713';
             // append the tick element to an existing element with id "my-element"
         }
+        
         accountStatusElement.id = 'firefly-status'
         const hasStatusOnPage = getANZAccountStatus()
         if(!hasStatusOnPage){
@@ -156,8 +187,7 @@ async function onSubmit(event){
         importButton.style.backgroundColor = 'gray'
         const config = await getAccountConfig(accountName)
         
-        const rows = getANZRows();
-        
+        const rows = elementFinder.getRows()
 
         const transactionsToSend = Array.from(rows)
         console.log(`${transactionsToSend.length} to upload)`)
@@ -166,7 +196,7 @@ async function onSubmit(event){
             orginalRow: t,
                tToSend: mapANZRowToFireflyTransaction(t, config, manifest_version)
         })).forEach((t) => {
-            const updatedRow = getSpecificTransactionRow(t.orginalRow.transactionId)
+            const updatedRow = t.orginalRow.htmlElement
             updatedRow.style.backgroundColor = '#bffcc0'
             const eventToFire:SetTransactionsOptions = {
                 transaction: t.tToSend,
@@ -188,7 +218,7 @@ async function onSubmit(event){
 
                     const existingElement = document.createElement("div");
                     existingElement.textContent = `${res.message}`;
-                    existingElement.style.color = "orange";
+                    //existingElement.style.color = "orange";
                     updatedRow.appendChild(existingElement)
                 }else{
                     const errorElement = document.createElement('div');

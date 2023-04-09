@@ -4,7 +4,7 @@ import Browser from "webextension-polyfill"
 import { SearchResult } from "./ddg_search"
 import { getFireflyConfig } from "src/util/userConfig"
 import { ListTransactionRequest, AccountsApi, Configuration, TransactionsApi, TransactionRead, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
-import { ANZRow } from "src/util/elementFinder"
+import { TransactionRow } from "src/util/anzElementFinder"
 
 const cleanText = (text: string) =>
     text.trim()
@@ -84,7 +84,7 @@ interface Pagination {
     listOptions: ListTransactionRequest
 }
 
-export function getTransactionTypeProperty (transaction:ANZRow):TransactionTypeProperty {
+export function getTransactionTypeProperty (transaction:TransactionRow):TransactionTypeProperty {
     if(transaction.creditAmount?.length > 0){
         return 'withdrawal' as TransactionTypeProperty
     }
