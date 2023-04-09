@@ -4,7 +4,7 @@ import createShadowRoot from "src/util/createShadowRoot"
 import Browser from 'webextension-polyfill';
 import {  SetTransactionsOptions } from './api';
 import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
-import {  getAccountConfig, getFireflyConfig } from 'src/util/userConfig';
+import {  AccountConfig, getAccountConfig, getFireflyConfig } from 'src/util/userConfig';
 import SettingsConfig from 'src/components/SettingsConfig';
 import { ElementFinder, SelectorSet, getAccountStatusElement } from 'src/util/ElementFinder';
 import { update } from 'lodash-es';
@@ -15,7 +15,8 @@ const importButton = document.createElement('button');
 //let topMenuBar:HTMLElement
 let importButtonContainer:HTMLElement
 // The name of the account retrieved from the page, used to get account specific config
-let accountName:string
+let accountName:string;
+let accountConfig:AccountConfig|null
 
 //et accountStatusElement:HTMLElement;
 
@@ -25,7 +26,6 @@ async function contentLoaded (){
     console.log('contentLoaded')
 }
 
-const targetNode = document.body;
 console.log('WOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\n')
 // create an observer instance
 let timer;
@@ -53,7 +53,7 @@ const observer = new MutationObserver((mutationsList, observer) => {
 })
 
 // start observing the target node for mutations
-observer.observe(targetNode, { childList: true, subtree: true });
+observer.observe(document.body, { childList: true, subtree: true });
 
 const getSelectorSet = ():SelectorSet => {
     if(window.location.origin.includes('anz.co.nz')){
@@ -120,7 +120,7 @@ async function updateUI() {
         accountName = accountNameEl.textContent.trim();
 
         
-        const accountConfig = await getAccountConfig(accountName)
+        accountConfig = await getAccountConfig(accountName)
         manifest_version = Browser.runtime.getManifest().version
 
     // topMenuBar = getTopMenuBar();
@@ -170,18 +170,8 @@ async function updateUI() {
         importButton.style.cursor = 'pointer';
         importButtonContainer.appendChild(importButton)
 
-        const accountStatusElement = document.createElement('div')
-        accountStatusElement.id = 'firefly-status'
-        if(!accountConfig){
-            accountStatusElement.textContent = '\u2717 (No firefly config)';
-        }else{
-            accountStatusElement.textContent = '\u2713';
-        }
-
-        importButtonContainer.appendChild(accountStatusElement)
-
         // Double check we haven't already rendered
-        if(!getAccountStatusElement()) document.body.appendChild(importButtonContainer)
+        //if(!getAccountStatusElement()) document.body.appendChild(importButtonContainer)
 
        // document.body.style.backgroundColor = 'blue'
         
@@ -192,8 +182,11 @@ async function updateUI() {
         shadowRoot
         } = await createShadowRoot('content-scripts/mainUI.css')
 
-    // shadowRootDiv.classList.add('wcg-toolbar')
-    importButtonContainer.appendChild(shadowRootDiv)
+    // Double check we haven't already rendered
+ //   const alreadyRendered = getAccountStatusElement()
+   // if(!alreadyRendered) { 
+
+ //   }
 
     render(<Fragment>
         {/*} <ImportButton onClick={onSubmit} />          */}  
@@ -201,6 +194,9 @@ async function updateUI() {
         {<SettingsConfig />}
         {}
         </Fragment>, shadowRoot)
+
+    document.body.appendChild(shadowRootDiv)
+    document.body.appendChild(importButtonContainer)
 }
 async function onSubmit(event){
     if (event.type === "click") {
