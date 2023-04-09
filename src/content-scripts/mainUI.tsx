@@ -1,30 +1,23 @@
 import '../style/base.css'
-import { getANZTransactionTable,  getEndDatePicker,  getStartDatePicker} from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
-import { dateFormatter } from 'src/util/dateFormatter';
 import Browser from 'webextension-polyfill';
-import { GetTransactionsOptions, SetTransactionsOptions } from './api';
+import {  SetTransactionsOptions } from './api';
 import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
-import {  getAccountConfig } from 'src/util/userConfig';
-import ImportButton from 'src/components/ImportButton';
+import {  getAccountConfig, getFireflyConfig } from 'src/util/userConfig';
 import SettingsConfig from 'src/components/SettingsConfig';
-import ElementFinder, { SelectorSet } from 'src/util/anzElementFinder';
+import { ElementFinder, SelectorSet, getAccountStatusElement } from 'src/util/ElementFinder';
+import { update } from 'lodash-es';
 
-let table: HTMLElement
 //let btnSubmit:HTMLButtonElement
-let startDatePicker:HTMLInputElement
-let endDatePicker:HTMLInputElement
 let manifest_version:string
-let startDate:Date  // YYYY-MM-DD
-let endDate:Date 
 const importButton = document.createElement('button');
 //let topMenuBar:HTMLElement
 let importButtonContainer:HTMLElement
 // The name of the account retrieved from the page, used to get account specific config
 let accountName:string
 
-let accountStatusElement:HTMLElement;
+//et accountStatusElement:HTMLElement;
 
 let elementFinder:ElementFinder;
 
@@ -35,20 +28,29 @@ async function contentLoaded (){
 const targetNode = document.body;
 console.log('WOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\n')
 // create an observer instance
+let timer;
 const observer = new MutationObserver((mutationsList, observer) => {
+    if (timer) clearTimeout(timer);
     for(const mutation of mutationsList) {
         if (mutation.type === 'childList') {
-            for(const addedNode of mutation.addedNodes) {
-                console.log(addedNode)
-                if (addedNode?.classList && addedNode?.classList.contains('transactions-list') ||
-                addedNode.classList && addedNode.classList.contains('MuiFab-primary')
-                ) {
-                    updateUI()
-                }
+            for(const addedNodeRaw of mutation.addedNodes) {
+
+                    if(addedNodeRaw.nodeType == 1){
+                        const addedNode = addedNodeRaw as HTMLElement
+                        //console.log(addedNode)
+
+                        if(addedNode?.classList && addedNode?.classList.contains('MuiBox-root')
+                        || addedNode?.classList.contains('responsiveheight')
+                        || addedNode.innerText.startsWith('$') && addedNode?.classList.contains('MuiTypography-root') && addedNode.classList.contains('MuiTypography-h3')
+                        || addedNode?.classList && addedNode?.classList.contains('transactions-list')
+                        ){
+                            debounce(updateUI());
+                        }
+                    }
             }
         }
     }
-});
+})
 
 // start observing the target node for mutations
 observer.observe(targetNode, { childList: true, subtree: true });
@@ -68,7 +70,7 @@ const getSelectorSet = ():SelectorSet => {
 
     if(window.location.origin.includes('app.simplicity.kiwi')){
         return {
-            accountName: "div[class='MuiBox-root'] span[class='MuiTypography-subtitle1']",
+            accountName: "p span[class*='MuiTypography-subtitle1']",
             rows: "tr[class*='MuiTableRow-root']",
             date: "table tr th div div",
             title: 'table tr th subtitle2',
@@ -79,61 +81,80 @@ const getSelectorSet = ():SelectorSet => {
     }
 }
 
+function debounce(callback) {
+    let timerId;
+    return function() {
+      clearTimeout(timerId);
+      timerId = setTimeout(() => {
+        callback.apply(this);
+      });
+    };
+  }
 
 async function updateUI() {
 
 
+    if(getAccountStatusElement()) return
+
     console.log('updateUI')
     elementFinder = new ElementFinder(getSelectorSet());
+    
 
     const errors = []
     const accountNameEl = elementFinder.getAccountNameOnPage();
-    accountName = accountNameEl.textContent.trim();
-    const accountConfig = await getAccountConfig(accountName)
-    manifest_version = Browser.runtime.getManifest().version
 
-   // topMenuBar = getTopMenuBar();
+    importButtonContainer = document.createElement('div');
 
-    table = getANZTransactionTable()
-    //loadMoreContainer = getLoadMoreContainer()
-    //btnSubmit = getSubmitButton()
-    startDatePicker = getStartDatePicker();
-    endDatePicker = getEndDatePicker()
-
- //2023-04-09T15:30:00Z
+    // Set the style for the div element
+    importButtonContainer.style.position = 'fixed';
+    importButtonContainer.style.right = '5%';
+    importButtonContainer.style.top = '30%';
+    importButtonContainer.style.height = '30rem';
+    importButtonContainer.style.width = '10rem';
+    importButtonContainer.style.transform = 'translate(-50%, -50%)';
 
 
-    
-    if(!startDate){
-        errors.push('Could not get start date')
-    }
+    if(!accountNameEl) {
+        errors.push('Could not get account name')
+    } else {
+        accountName = accountNameEl.textContent.trim();
 
-    if(!endDate){
-        errors.push('Could not get end date')
-    }
+        
+        const accountConfig = await getAccountConfig(accountName)
+        manifest_version = Browser.runtime.getManifest().version
 
-    console.log('updateUI 3')
+    // topMenuBar = getTopMenuBar();
+
+    // table = getANZTransactionTable()
+        //loadMoreContainer = getLoadMoreContainer()
+        //btnSubmit = getSubmitButton()
+     //   const startDate = elementFinder.getStartDate()
+     ///   const endDate = elementFinder.getEndDate()
+
+    //2023-04-09T15:30:00Z
 
 
-       
-       // table.addEventListener("DOMSubtreeModified", onTableChange)
-        //btnSubmit.addEventListener("click", onSubmit)
+        
+     //   if(!startDate){
+     //       errors.push('Could not get start date')
+     //   }
 
-       // const textareaParentParent = table.parentElement.parentElement
-        //textareaParentParent.style.flexDirection = 'column'
-       // textareaParentParent.parentElement.style.flexDirection = 'column'
-       // textareaParentParent.parentElement.style.gap = '0px'
-       // textareaParentParent.parentElement.style.marginBottom = '0.5em'
+     //   if(!endDate){
+     //       errors.push('Could not get end date')
+     //   }
 
-       importButtonContainer = document.createElement('div');
 
-        // Set the style for the div element
-        importButtonContainer.style.position = 'fixed';
-        importButtonContainer.style.left = '5%';
-        importButtonContainer.style.top = '20%';
-        importButtonContainer.style.height = '30rem';
-        importButtonContainer.style.width = '10rem';
-        importButtonContainer.style.transform = 'translate(-50%, -50%)';
+        
+        // table.addEventListener("DOMSubtreeModified", onTableChange)
+            //btnSubmit.addEventListener("click", onSubmit)
+
+        // const textareaParentParent = table.parentElement.parentElement
+            //textareaParentParent.style.flexDirection = 'column'
+        // textareaParentParent.parentElement.style.flexDirection = 'column'
+        // textareaParentParent.parentElement.style.gap = '0px'
+        // textareaParentParent.parentElement.style.marginBottom = '0.5em'
+
+
 
         // Create the button element
         importButton.type = 'submit';
@@ -141,6 +162,7 @@ async function updateUI() {
         importButton.onclick = onSubmit;
         // Add some basic CSS styles to the button
         importButton.style.padding = '10px 20px';
+        importButton.style.zIndex = '9999999';
         importButton.style.border = 'none';
         importButton.style.backgroundColor = '#007bff';
         importButton.style.color = 'white';
@@ -148,40 +170,37 @@ async function updateUI() {
         importButton.style.cursor = 'pointer';
         importButtonContainer.appendChild(importButton)
 
-        document.body.appendChild(importButtonContainer)
-
-        accountStatusElement = getANZAccountStatus() ?? document.createElement('span');
+        const accountStatusElement = document.createElement('div')
+        accountStatusElement.id = 'firefly-status'
         if(!accountConfig){
             accountStatusElement.textContent = '\u2717 (No firefly config)';
         }else{
             accountStatusElement.textContent = '\u2713';
-            // append the tick element to an existing element with id "my-element"
         }
+
+        importButtonContainer.appendChild(accountStatusElement)
+
+        // Double check we haven't already rendered
+        if(!getAccountStatusElement()) document.body.appendChild(importButtonContainer)
+
+       // document.body.style.backgroundColor = 'blue'
         
-        accountStatusElement.id = 'firefly-status'
-        const hasStatusOnPage = getANZAccountStatus()
-        if(!hasStatusOnPage){
-            accountNameEl.parentElement.appendChild(accountStatusElement);
-        }
-        
+    }
 
-        const { 
-            shadowRootDiv, 
-            shadowRoot
-         } = await createShadowRoot('content-scripts/mainUI.css')
+    const { 
+        shadowRootDiv, 
+        shadowRoot
+        } = await createShadowRoot('content-scripts/mainUI.css')
 
-         console.log('appendChild 2')
+    // shadowRootDiv.classList.add('wcg-toolbar')
+    importButtonContainer.appendChild(shadowRootDiv)
 
-       // shadowRootDiv.classList.add('wcg-toolbar')
-       importButtonContainer.appendChild(shadowRootDiv)
-        console.log('appendChild')
-
-        render(<Fragment>
-           {/*} <ImportButton onClick={onSubmit} />          */}  
-            {<SettingsConfig />}
-            </Fragment>, shadowRoot)
-        console.log('render')
-
+    render(<Fragment>
+        {/*} <ImportButton onClick={onSubmit} />          */}  
+        {errors.map((e) => <div key={e} className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400">{e}</div>)}
+        {<SettingsConfig />}
+        {}
+        </Fragment>, shadowRoot)
 }
 async function onSubmit(event){
     if (event.type === "click") {

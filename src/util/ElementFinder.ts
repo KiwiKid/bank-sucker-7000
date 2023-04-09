@@ -29,25 +29,22 @@ export interface SelectorSet {
     crAmount:string
 }
 
+export interface DateInput {
+    date:Date
+    htmlElement:HTMLElement
+}
 
+export const getAccountStatusElement = ():HTMLElement => {
+    return document.querySelector("div[id='firefly-status']")
+}
 
-
-class ElementFinder {
+export class ElementFinder {
     selectorSet:SelectorSet
     
     constructor(selectorSet:SelectorSet){
         this.selectorSet = selectorSet;
     }
-    
-    getStartDate():Date{
-        const element = document.querySelector("input[class*='date-range-start-date']")
-        return new Date(Date.parse(`${element.textContent?.trim().replace('/', '-')}T00:00:00Z`)) //2023-04-09T15:30:00Z
-    }
 
-    getEndDate():Date{
-        const element = document.querySelector("input[class*='date-range-end-date']")
-        return new Date(Date.parse(`${element.textContent?.trim().replace('/', '-')}T00:00:00Z`))
-    }
 
     getAccountNameOnPage(): HTMLElement {
         return document.querySelector(this.selectorSet.accountName)
@@ -114,7 +111,7 @@ class ElementFinder {
 
             return { 
                 htmlElement: row
-                , transactionId: `via bank-sucker-7000_${title?.length > 0 ? title : details}_${finalDepositAmount.length > 0 ? `${finalDepositAmount}_` : '' ?? ''}${finalCreditAmount.length > 0 ? `${finalCreditAmount}_` : ''}${date.toISOString().slice(0, 10)}`
+                , transactionId: `via bank-sucker-7000_${title?.length > 0 ? title : details}_${finalDepositAmount?.length > 0 ? `${finalDepositAmount}_` : '' ?? ''}${finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ''}${date.toISOString().slice(0, 10)}`
                 , date
               //  , type
                 , title
@@ -128,5 +125,3 @@ class ElementFinder {
         return res;
     }
 }
-
-export default ElementFinder
