@@ -1,40 +1,57 @@
 import '../style/base.css'
-import { getANZActionPanel, getANZRows, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getSpecificTransactionRow, getStartDatePicker, getSubmitButton } from "src/util/elementFinder"
+import { getANZAccountStatus, getANZActionPanel, getANZRows, getANZTransactionTable, getAccountNameOnPage, getEndDatePicker, getLoadMoreContainer, getSpecificTransactionRow, getStartDatePicker, getSubmitButton, getTopMenuBar } from "src/util/elementFinder"
 import { render, h, Fragment } from 'preact'
 import createShadowRoot from "src/util/createShadowRoot"
 import { dateFormatter } from 'src/util/dateFormatter';
 import Browser from 'webextension-polyfill';
-import { GetTransactionsOptions, SetTransactionsOptions, getTransactionTypeProperty } from './api';
+import { GetTransactionsOptions, SetTransactionsOptions } from './api';
 import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
-import { AccountConfig, getAccountConfig } from 'src/util/userConfig';
-import { useEffect } from 'preact/hooks';
+import {  getAccountConfig } from 'src/util/userConfig';
 import ImportButton from 'src/components/ImportButton';
+import SettingsConfig from 'src/components/SettingsConfig';
 
 let table: HTMLElement
-let actionsPanel: HTMLElement
-let btnSubmit:HTMLButtonElement
+//let btnSubmit:HTMLButtonElement
 let startDatePicker:HTMLInputElement
 let endDatePicker:HTMLInputElement
 let manifest_version:string
 let startDate:Date  // YYYY-MM-DD
 let endDate:Date 
-
+const importButton = document.createElement('button');
+let topMenuBar:HTMLElement
+let importButtonContainer:HTMLElement
 // The name of the account retrieved from the page, used to get account specific config
 let accountName:string
 
-/*Browser.runtime.onMessageExternal.addListener((message) => {
+let accountStatusElement:HTMLElement;
 
-    if(message.type == 'set_transaction_imported'){
-        onTransactionUploaded(message.date, message.amount)
+async function contentLoaded (){
+    console.log('contentLoaded')
+}
+
+const targetNode = document.body;
+
+// create an observer instance
+const observer = new MutationObserver((mutationsList, observer) => {
+    for(const mutation of mutationsList) {
+        if (mutation.type === 'childList') {
+            for(const addedNode of mutation.addedNodes) {
+            //    console.log(addedNode)
+                if (addedNode?.classList && addedNode?.classList.contains('transactions-list')) {
+                    updateUI()
+                }
+            }
+        }
     }
+});
 
-})*/
+// start observing the target node for mutations
+observer.observe(targetNode, { childList: true, subtree: true });
+
 
 async function updateUI() {
 
     const errors = []
-   // if (getANZActionPanel()) return
-
     const accountNameEl = getAccountNameOnPage();
     accountName = accountNameEl.textContent.trim();
     console.log('accountName')
@@ -43,9 +60,11 @@ async function updateUI() {
     const accountConfig = await getAccountConfig(accountName)
     manifest_version = Browser.runtime.getManifest().version
 
+    topMenuBar = getTopMenuBar();
+
     table = getANZTransactionTable()
-    actionsPanel = getANZActionPanel()
-    btnSubmit = getSubmitButton()
+    //loadMoreContainer = getLoadMoreContainer()
+    //btnSubmit = getSubmitButton()
     startDatePicker = getStartDatePicker();
     endDatePicker = getEndDatePicker()
 
@@ -65,9 +84,8 @@ async function updateUI() {
     console.log('updateUI 3')
 
 
-    if (actionsPanel) {
-        
-        table.addEventListener("DOMSubtreeModified", onTableChange)
+       
+       // table.addEventListener("DOMSubtreeModified", onTableChange)
         //btnSubmit.addEventListener("click", onSubmit)
 
        // const textareaParentParent = table.parentElement.parentElement
@@ -75,7 +93,45 @@ async function updateUI() {
        // textareaParentParent.parentElement.style.flexDirection = 'column'
        // textareaParentParent.parentElement.style.gap = '0px'
        // textareaParentParent.parentElement.style.marginBottom = '0.5em'
-       console.log('appendChild 1')
+
+       importButtonContainer = document.createElement('div');
+
+        // Set the style for the div element
+        importButtonContainer.style.position = 'fixed';
+        importButtonContainer.style.left = '5%';
+        importButtonContainer.style.top = '50%';
+        importButtonContainer.style.height = '30rem';
+        importButtonContainer.style.width = '10rem';
+        importButtonContainer.style.transform = 'translate(-50%, -50%)';
+
+        // Create the button element
+        importButton.type = 'submit';
+        importButton.textContent = 'Import';
+        importButton.onclick = onSubmit;
+        // Add some basic CSS styles to the button
+        importButton.style.padding = '10px 20px';
+        importButton.style.border = 'none';
+        importButton.style.backgroundColor = '#007bff';
+        importButton.style.color = 'white';
+        importButton.style.fontSize = '1.2rem';
+        importButton.style.cursor = 'pointer';
+        importButtonContainer.appendChild(importButton)
+
+        document.body.appendChild(importButtonContainer)
+
+        accountStatusElement = getANZAccountStatus() ?? document.createElement('span');
+        if(!accountConfig){
+            accountStatusElement.textContent = '\u2717 (No firefly config)';
+        }else{
+            accountStatusElement.textContent = '\u2713';
+            // append the tick element to an existing element with id "my-element"
+        }
+        accountStatusElement.id = 'firefly-status'
+        const hasStatusOnPage = getANZAccountStatus()
+        if(!hasStatusOnPage){
+            accountNameEl.parentElement.appendChild(accountStatusElement);
+        }
+        
 
         const { 
             shadowRootDiv, 
@@ -85,35 +141,23 @@ async function updateUI() {
          console.log('appendChild 2')
 
        // shadowRootDiv.classList.add('wcg-toolbar')
-        actionsPanel.appendChild(shadowRootDiv)
+       importButtonContainer.appendChild(shadowRootDiv)
         console.log('appendChild')
 
-        render(<Fragment><ImportButton onClick={onSubmit} />            
+        render(<Fragment>
+           {/*} <ImportButton onClick={onSubmit} />          */}  
+            {<SettingsConfig />}
             </Fragment>, shadowRoot)
         console.log('render')
-    }else{
-        console.error('No action panel? getANZActionPanel')
-    }
 
 }
 async function onSubmit(event){
     if (event.type === "click") {
+        importButton.style.backgroundColor = 'gray'
         const accountConfig = await getAccountConfig(accountName)
         
-      /*  const getOptions:GetTransactionsOptions = {
-            accountName,
-            listOptions: {
-                page: 1,
-                start: startDate,
-                end: endDate,
-            }
-        }
-
-       existingTransactions = await Browser.runtime.sendMessage({
-        type: "get_transactions", options: getOptions})
-*/
-
         const rows = getANZRows();
+        
 
         const transactionsToSend = Array.from(rows)
         console.log(`${transactionsToSend.length} to upload)`)
@@ -122,6 +166,8 @@ async function onSubmit(event){
             orginalRow: t,
                tToSend: mapANZRowToFireflyTransaction(t, accountConfig, manifest_version)
         })).forEach((t) => {
+            const updatedRow = getSpecificTransactionRow(t.orginalRow.transactionId)
+            updatedRow.style.backgroundColor = '#bffcc0'
             const eventToFire:SetTransactionsOptions = {
                 transaction: t.tToSend
             }
@@ -129,21 +175,25 @@ async function onSubmit(event){
                 type: "set_transactions", 
                 options: eventToFire
             }).then((res) => {
-                console.log('\n\nMAIN UI RES:')
-                console.log(res)
-                console.log(eventToFire)
                 
-                const updatedRow = getSpecificTransactionRow(t.orginalRow.transactionId)
                 if(res.status === 'uploaded'){
-                    updatedRow.style.backgroundColor = '#b8ffab'
+                    updatedRow.style.backgroundColor = '#b8e7ff'
+                    const uploadedElement = document.createElement("div");
+                    uploadedElement.textContent = res.status;
+                    updatedRow.appendChild(uploadedElement)
+
                 }else if(res.status == 'existing'){
                     updatedRow.style.backgroundColor = '#ffd2ab'
+
+                    const existingElement = document.createElement("div");
+                    existingElement.textContent = res.status;
+                    existingElement.style.color = "orange";
+                    updatedRow.appendChild(existingElement)
                 }else{
                     const errorElement = document.createElement('div');
-                    errorElement.textContent = res.message;
-                    errorElement.style.color = 'red';
-                    updatedRow.parentNode?.appendChild(errorElement);
-                    updatedRow.style.backgroundColor = 'red'
+                    errorElement.textContent = `${res?.status} - ${res?.message}`;
+                    updatedRow.appendChild(errorElement);
+                    updatedRow.style.backgroundColor = ' #ff957e'
                 }
                 
 
@@ -151,64 +201,13 @@ async function onSubmit(event){
                 console.error(`\n\nMAIN UI RES - error`)
                 console.log(err)
                 console.log(eventToFire)
+            }).finally(() => {
+                importButton.style.backgroundColor = '#007bff';
             })
-
-          //  console.log('\n\nMAIN UI RES awaited:')
-          //  console.log(res)
         })
-
-
-            
-
-
     }
 }
 
-const onTableChange = function (){
-    console.log('table changed')
-}
-
-const onTransactionUploaded = function (date, title){
-    console.log('\n\n\ntransactionInfo confimed uploaded\n\n')
-    console.log({date, title})
-}
-
-setTimeout(() => {
-    updateUI()
-    try {
-        const rootEl = getANZTransactionTable();
-
-        if(!rootEl){
-            console.info('No Table found, no update')
-            return;
-        }
-
-        new MutationObserver(() => {
-            console.log('MAIN ANZ UI RAN ONLOAD - MutationObserver:updateUI()')
-            updateUI()
-        }).observe(rootEl, { childList: true })
-    } catch (e) {
-        console.info("error --> Could not update UI:\n", e.stack)
-        console.error(e)
-    }
-}, 1500)
-/*
-window.onload = function () {
-    console.log('MAIN ANZ UI 1 RAN ONLOAD')
-    updateUI()
-
-    try {
-        console.log('MAIN ANZ UI RAN ONLOAD - 2 MutationObserver')
-
-        new MutationObserver(() => {
-            console.log('MAIN ANZ UI RAN ONLOAD - 3 updateUI()')
-            updateUI()
-        }).observe(rootEl, { childList: true })
-    } catch (e) {
-        console.info("error --> Could not update UI:\n", e.stack)
-    }
-}
-*/
 document.addEventListener("onload", () => {
     console.log('onload');
 })

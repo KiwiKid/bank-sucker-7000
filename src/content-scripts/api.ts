@@ -188,8 +188,10 @@ enum TransResult {
     Failed3 = 'failed-3',
     Failed4 = 'failed-4',
     Failed5 = 'failed-5',
+    ConnectionError = 'ConnectionError',
     Existing = 'existing',
     Uploaded = 'uploaded',
+    AuthFailure = 'auth-failure'
 } 
 interface TransactionResults {
     transaction: TransactionSplitStore,
@@ -232,8 +234,19 @@ export async function setTransaction(options:SetTransactionsOptions):Promise<Tra
                             status: TransResult.Uploaded,
                         }
                     }).catch(async (errRes) => {
-                        
-                        const errorBody = await errRes.json()
+                        if(errRes.message != null){
+                            return {
+                                transaction: options.transaction,
+                                status: TransResult.ConnectionError,
+                                message: errRes?.message ?? 'Failed to store transaction'
+                            }
+                        }
+                        const errorBody = await errRes.json().catch((err) => {
+                            return {
+                                status: 500,
+                                message: err
+                            }
+                        })
 
                         if(errRes?.status === 422){
                             console.log('errorBodyerrorBodyerrorBodyerrorBodyerrorBody')
@@ -270,12 +283,19 @@ export async function setTransaction(options:SetTransactionsOptions):Promise<Tra
                                     message: errorBody?.message ?? 'Failed to store transaction'
                                 }
                         }
-                //        console.error(errorBody)
+                        if(errRes.statusText == 'Unauthorized'){
+                            return {
+                                transaction: options.transaction,
+                                status: TransResult.AuthFailure,
+                                message: `${errRes?.status} - Could not authenticate, check firefly token config`
+                            }
+                        }
                         return {
                             transaction: options.transaction,
                             status: TransResult.Failed5,
+                            message: `${errRes?.status} - ${errRes?.statusText}`
                         }
-                    })
+                })
 
                 }catch(err){
                     console.error('SetTransaction outer catch', err)

@@ -17,39 +17,10 @@ const defaultConfig = {
             {
                 destinationName: 'Anz',
                 accountNameOnSite: 'Main Account',
-                accountPageUrl: '/IBCS/service/account#/Ulej9pp2/transactions',
             }
         ]
     }
 }
-
-
-       // Add manual config/config loading here:
-     //   await updateUserConfig({firefly: {
-     //       token: '',
-     //       address: '',
-     //       accountExportConfig: [
-     //           {
-     //               destinationName: 'Anz',
-     //               accountPageUrl: '/IBCS/service/account#/Ug3ltsyw/transactions',
-     //           }
-     //       ]
-     //   }})
-
-const manualSetConfig = async () => {
-    await updateUserConfig({firefly: {
-        token: '[firefly-access-token]',
-        address: '[firefly-web-address]',
-        accountExportConfig: [
-            {
-                destinationName: 'Anz',
-                accountNameOnSite: 'Main Account',
-                accountPageUrl: '/IBCS/service/account#/Ug3ltsyw/transactions',
-            }
-        ]
-    }})
-}
-    
 
 export type UserConfig = typeof defaultConfig
 
@@ -77,7 +48,6 @@ export async function getAccountConfig(accountName:string): Promise<AccountConfi
     (checked ${fireflyConfig?.accountExportConfig?.length > 0 ? fireflyConfig?.accountExportConfig?.map((aec) => `${aec.accountNameOnSite}`).join() : 'none in config'})`)
 }
 
-
 export async function getFireflyConfig(): Promise<FireflyConfig> {
     const config = await getUserConfig()
     if(!config || !config.firefly?.token || config.firefly?.token == 'set-this-token-in-browser-storage'){
@@ -91,8 +61,3 @@ export async function getFireflyConfig(): Promise<FireflyConfig> {
 export async function updateUserConfig(config: Partial<UserConfig>): Promise<void> {
     await Browser.storage.sync.set(config)
 }
-
-
-(async () => {
-    await manualSetConfig();
-})();

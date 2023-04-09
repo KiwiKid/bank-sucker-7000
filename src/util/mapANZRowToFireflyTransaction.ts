@@ -12,7 +12,7 @@ const getBaseFields = (t:ANZRow, ac:AccountConfig, version:string):TransactionSp
         amount:  isWithdrawal ? t.depositAmount : t.creditAmount,
         type: getTransactionTypeProperty(t),
         description: isWithdrawal ? t.title : transactionTitle,
-        notes: `via bank-sucker-7000`,
+        notes: `via bank-sucker-7000_${t.date.toISOString().slice(0, 10)}`,
         date: t.date, 
     }
 }
