@@ -1,16 +1,17 @@
 import { defaults } from 'lodash-es'
 import Browser from 'webextension-polyfill'
 import { getSystemLanguage } from './localization'
+import { SelectorSet } from './ElementFinder'
 
 
-const defaultConfig = {
+const defaultConfig: UserConfig = {
     numWebResults: 3,
     webAccess: true,
     region: 'wt-wt',
     timePeriod: '',
     language: getSystemLanguage(),
     promptUUID: 'default',
-    firefly:{
+    firefly: {
         dry_run: true,
         token: 'set-this-token-in-browser-storage',
         address: 'http://url+port-to-firefly-no-end-slash',
@@ -19,23 +20,55 @@ const defaultConfig = {
                 website: 'anz',
                 fireflyAccountName: 'Anz',
                 accountNameOnBankSite: 'Main Account',
+                selectors: {
+                    accountName: `h1[class='account-name-heading']").querySelector("span[class='account-name']`,
+                    table: `div[class*='transactions-list']`,
+                    date: `input[class*='date-range-start-date']`,
+                    details: ``,
+                    title: ``,
+                    drAmount: ``,
+                    crAmount: ``,
+                }
             },
             {
                 website: 'simplicity',
                 accountNameOnBankSite: 'KiwiSaver Growth Fund',
-                fireflyAccountName: 'Simplicity Investment - Growth'
+                fireflyAccountName: 'Simplicity Investment - Growth',
+                selectors: {
+
+                }
             }
         ]
     }
 }
 
-export type UserConfig = typeof defaultConfig
+export type UserConfig = {
+    numWebResults: number
+    webAccess: boolean
+    region: string
+    timePeriod: string
+    language: string
+    promptUUID: string
+    firefly: FireflyConfig
+}
 
-export type FireflyConfig = typeof defaultConfig.firefly
+export type FireflyConfig = {
+    dry_run: boolean,
+    token: string
+    address: string
+    accountExportConfig: AccountExportConfig[]
+}
+
+export type AccountExportConfig = {
+    website: 'anz' | 'simplicity',
+    fireflyAccountName: string,
+    accountNameOnBankSite: string
+    selectors: SelectorSet
+}
 
 
 export type AccountConfig = {
-    accountConfig: typeof defaultConfig.firefly.accountExportConfig[0]
+    accountConfig: AccountExportConfig
     fireflyConfig: FireflyConfig
 }
 
@@ -44,14 +77,14 @@ export async function getUserConfig(): Promise<UserConfig> {
     return defaults(config, defaultConfig)
 }
 
-export async function getAccountConfig(accountName:string): Promise<AccountConfig> {
+export async function getAccountConfig(accountName: string): Promise<AccountConfig> {
     const fireflyConfig = await getFireflyConfig()
 
-    if(!fireflyConfig.accountExportConfig){
+    if (!fireflyConfig.accountExportConfig) {
         console.error('Could not find matching account')
     }
     const currentAccount = fireflyConfig?.accountExportConfig?.filter((ac) => ac.accountNameOnBankSite === accountName)
-    if(currentAccount?.length > 0){
+    if (currentAccount?.length > 0) {
         return {
             fireflyConfig,
             accountConfig: currentAccount[0]
@@ -63,8 +96,8 @@ export async function getAccountConfig(accountName:string): Promise<AccountConfi
 
 export async function getFireflyConfig(): Promise<FireflyConfig> {
     const config = await getUserConfig()
-    if(!config || !config.firefly?.token || config.firefly?.token == 'set-this-token-in-browser-storage'){
-        
+    if (!config || !config.firefly?.token || config.firefly?.token == 'set-this-token-in-browser-storage') {
+
         console.log('No firefly API Token in browser storage/config')
     }
 

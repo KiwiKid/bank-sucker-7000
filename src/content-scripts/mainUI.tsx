@@ -1,264 +1,217 @@
-import '../style/base.css'
-import { render, h, Fragment } from 'preact'
-import createShadowRoot from "src/util/createShadowRoot"
-import Browser from 'webextension-polyfill';
-import {  SetTransactionsOptions } from './api';
-import { mapANZRowToFireflyTransaction } from 'src/util/mapANZRowToFireflyTransaction';
-import {  AccountConfig, getAccountConfig, getFireflyConfig } from 'src/util/userConfig';
-import SettingsConfig from 'src/components/SettingsConfig';
-import { ElementFinder, SelectorSet, getAccountStatusElement } from 'src/util/ElementFinder';
-import { update } from 'lodash-es';
+import { ElementFinder } from "src/util/ElementFinder";
+import "../style/base.css";
+import { render, h, Fragment } from "preact";
+import createShadowRoot from "src/util/createShadowRoot";
+import { dateFormatter } from "src/util/dateFormatter";
 
-//let btnSubmit:HTMLButtonElement
-let manifest_version:string
-const importButton = document.createElement('button');
-//let topMenuBar:HTMLElement
-let importButtonContainer:HTMLElement
-// The name of the account retrieved from the page, used to get account specific config
-let accountName:string;
-let accountConfig:AccountConfig|null
+import SettingsConfig from "src/components/SettingsConfig";
 
-//et accountStatusElement:HTMLElement;
+let table: HTMLElement;
+let actionsPanel: HTMLElement;
+let btnSubmit: HTMLButtonElement;
+let startDatePicker: HTMLInputElement;
+let endDatePicker: HTMLInputElement;
 
-let elementFinder:ElementFinder;
-
-async function contentLoaded (){
-    console.log('contentLoaded')
-}
-
-console.log('WOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\nWOAH\n\n')
-// create an observer instance
-let timer;
-const observer = new MutationObserver((mutationsList, observer) => {
-    if (timer) clearTimeout(timer);
-    for(const mutation of mutationsList) {
-        if (mutation.type === 'childList') {
-            for(const addedNodeRaw of mutation.addedNodes) {
-
-                    if(addedNodeRaw.nodeType == 1){
-                        const addedNode = addedNodeRaw as HTMLElement
-                        //console.log(addedNode)
-
-                        if(addedNode?.classList && addedNode?.classList.contains('MuiBox-root')
-                        || addedNode?.classList.contains('responsiveheight')
-                        || addedNode.innerText.startsWith('$') && addedNode?.classList.contains('MuiTypography-root') && addedNode.classList.contains('MuiTypography-h3')
-                        || addedNode?.classList && addedNode?.classList.contains('transactions-list')
-                        ){
-                            debounce(updateUI());
-                        }
-                    }
-            }
-        }
-    }
-})
-
-// start observing the target node for mutations
-observer.observe(document.body, { childList: true, subtree: true });
-
-const getSelectorSet = ():SelectorSet => {
-    if(window.location.origin.includes('anz.co.nz')){
-        return {
-            accountName: "h1[class='account-name-heading'] span[class='account-name']",
-            rows: "div[class*='transaction-row']",
-            title: '.transaction-detail-link',
-            date: "div[class*='column-postdate']",
-            details: '.transaction-detail-summary',
-            drAmount: '.column-dr .money',
-            crAmount: '.column-cr .money'
-        }
-    }
-
-    if(window.location.origin.includes('app.simplicity.kiwi')){
-        return {
-            accountName: "p span[class*='MuiTypography-subtitle1']",
-            rows: "tr[class*='MuiTableRow-root']",
-            date: "table tr th div div",
-            title: 'table tr th subtitle2',
-  //          type: ".column-type",
-            details: '.table tr th subtitle2',
-            crAmount: 'table tr:first-child td:nth-child(2)'
-        }
-    }
-}
-
-function debounce(callback) {
-    let timerId;
-    return function() {
-      clearTimeout(timerId);
-      timerId = setTimeout(() => {
-        callback.apply(this);
-      });
-    };
-  }
+let finder: ElementFinder;
 
 async function updateUI() {
+  try {
+    console.log("updateUI entry");
 
+    // if (getANZActionPanel()) return
 
-    if(getAccountStatusElement()) return
+    console.log("updateUI 2");
 
-    console.log('updateUI')
-    elementFinder = new ElementFinder(getSelectorSet());
-    
+    // TODO: fix this for other websites
+    finder = new ElementFinder();
+    await finder.setSelectorSet();
 
-    const errors = []
-    const accountNameEl = elementFinder.getAccountNameOnPage();
-
-    importButtonContainer = document.createElement('div');
-
-    // Set the style for the div element
-    importButtonContainer.style.position = 'fixed';
-    importButtonContainer.style.right = '5%';
-    importButtonContainer.style.top = '30%';
-    importButtonContainer.style.height = '30rem';
-    importButtonContainer.style.width = '10rem';
-    importButtonContainer.style.transform = 'translate(-50%, -50%)';
-
-
-    if(!accountNameEl) {
-        errors.push('Could not get account name')
-    } else {
-        accountName = accountNameEl.textContent.trim();
-
-        
-        accountConfig = await getAccountConfig(accountName)
-        manifest_version = Browser.runtime.getManifest().version
-
-    // topMenuBar = getTopMenuBar();
-
-    // table = getANZTransactionTable()
-        //loadMoreContainer = getLoadMoreContainer()
-        //btnSubmit = getSubmitButton()
-     //   const startDate = elementFinder.getStartDate()
-     ///   const endDate = elementFinder.getEndDate()
-
-    //2023-04-09T15:30:00Z
-
-
-        
-     //   if(!startDate){
-     //       errors.push('Could not get start date')
-     //   }
-
-     //   if(!endDate){
-     //       errors.push('Could not get end date')
-     //   }
-
-
-        
-        // table.addEventListener("DOMSubtreeModified", onTableChange)
-            //btnSubmit.addEventListener("click", onSubmit)
-
-        // const textareaParentParent = table.parentElement.parentElement
-            //textareaParentParent.style.flexDirection = 'column'
-        // textareaParentParent.parentElement.style.flexDirection = 'column'
-        // textareaParentParent.parentElement.style.gap = '0px'
-        // textareaParentParent.parentElement.style.marginBottom = '0.5em'
-
-
-
-        // Create the button element
-        importButton.type = 'submit';
-        importButton.textContent = 'Import';
-        importButton.onclick = onSubmit;
-        // Add some basic CSS styles to the button
-        importButton.style.padding = '10px 20px';
-        importButton.style.zIndex = '9999999';
-        importButton.style.border = 'none';
-        importButton.style.backgroundColor = '#007bff';
-        importButton.style.color = 'white';
-        importButton.style.fontSize = '1.2rem';
-        importButton.style.cursor = 'pointer';
-        importButtonContainer.appendChild(importButton)
-
-        // Double check we haven't already rendered
-        //if(!getAccountStatusElement()) document.body.appendChild(importButtonContainer)
-
-       // document.body.style.backgroundColor = 'blue'
-        
+    actionsPanel = finder.getAddImportButtonLocation();
+    if (!actionsPanel) {
+      return;
     }
 
-    const { 
-        shadowRootDiv, 
+    startDatePicker = finder.getStartDatePicker();
+    endDatePicker = finder.getEndDatePicker();
+
+    if (!endDatePicker || !startDatePicker) {
+      const button = document.querySelector<HTMLButtonElement>(
+        "button.transactions-filter-panel-toggle"
+      );
+      button.click();
+
+      startDatePicker = finder.getStartDatePicker();
+      endDatePicker = finder.getEndDatePicker();
+    }
+
+    table = finder.getTransactionTable();
+    actionsPanel = finder.getAddImportButtonLocation();
+    btnSubmit = finder.getFilterTransactionsButton();
+
+    console.log("updateUI 3");
+
+    if (actionsPanel) {
+      table.addEventListener("DOMSubtreeModified", onTableChange);
+      //btnSubmit.addEventListener("click", onSubmit)
+
+      // const textareaParentParent = table.parentElement.parentElement
+      //textareaParentParent.style.flexDirection = 'column'
+      // textareaParentParent.parentElement.style.flexDirection = 'column'
+      // textareaParentParent.parentElement.style.gap = '0px'
+      // textareaParentParent.parentElement.style.marginBottom = '0.5em'
+      console.log("appendChild 1");
+
+      const { shadowRootDiv, shadowRoot } = await createShadowRoot(
+        "content-scripts/mainUI.css"
+      );
+
+      console.log("appendChild 2");
+
+      // shadowRootDiv.classList.add('wcg-toolbar')
+      actionsPanel.appendChild(shadowRootDiv);
+      console.log("appendChild");
+      render(
+        <Fragment>
+          <SettingsConfig />
+          <button onClick={onSubmit} class="actual-import">
+            Hello World
+          </button>
+        </Fragment>,
         shadowRoot
-        } = await createShadowRoot('content-scripts/mainUI.css')
-
-    // Double check we haven't already rendered
- //   const alreadyRendered = getAccountStatusElement()
-   // if(!alreadyRendered) { 
-
- //   }
-
-    render(<Fragment>
-        {/*} <ImportButton onClick={onSubmit} />          */}  
-        {errors.map((e) => <div key={e} className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400">{e}</div>)}
-        {<SettingsConfig />}
-        {}
-        </Fragment>, shadowRoot)
-
-    document.body.appendChild(shadowRootDiv)
-    document.body.appendChild(importButtonContainer)
-}
-async function onSubmit(event){
-    if (event.type === "click") {
-        importButton.style.backgroundColor = 'gray'
-        const config = await getAccountConfig(accountName)
-        
-        const rows = elementFinder.getRows()
-
-        const transactionsToSend = Array.from(rows)
-        console.log(`${transactionsToSend.length} to upload)`)
-
-        transactionsToSend.map((t) => ({
-            orginalRow: t,
-               tToSend: mapANZRowToFireflyTransaction(t, config, manifest_version)
-        })).forEach((t) => {
-            const updatedRow = t.orginalRow.htmlElement
-            updatedRow.style.backgroundColor = '#bffcc0'
-            const eventToFire:SetTransactionsOptions = {
-                transaction: t.tToSend,
-                dry_run: config.fireflyConfig.dry_run
-            }
-            Browser.runtime.sendMessage({
-                type: "set_transactions", 
-                options: eventToFire
-            }).then((res) => {
-                
-                if(res.status === 'uploaded'){
-                    updatedRow.style.backgroundColor = '#b8e7ff'
-                    const uploadedElement = document.createElement("div");
-                    uploadedElement.textContent = res.status;
-                    updatedRow.appendChild(uploadedElement)
-
-                }else if(res.status == 'existing'){
-                    updatedRow.style.backgroundColor = '#ffd2ab'
-
-                    const existingElement = document.createElement("div");
-                    existingElement.textContent = `${res.message}`;
-                    //existingElement.style.color = "orange";
-                    updatedRow.appendChild(existingElement)
-                }else{
-                    const errorElement = document.createElement('div');
-                    errorElement.textContent = `${res?.status} - ${res?.message}`;
-                    updatedRow.appendChild(errorElement);
-                    updatedRow.style.backgroundColor = ' #ff957e'
-                }
-                
-
-            }).catch((err) => {
-                console.error(`\n\nMAIN UI RES - error`)
-                console.log(err)
-                console.log(eventToFire)
-            }).finally(() => {
-                importButton.style.backgroundColor = '#007bff';
-            })
-        })
+      );
+      //document.body.appendChild(p);
+      console.log("render");
+    } else {
+      console.error("No action panel? getANZActionPanel");
     }
+  } catch (e: any) {
+    finder._printAllChecks();
+    render(
+      <Fragment>
+        Error Occured
+        <SettingsConfig />
+        <pre>Error: {JSON.stringify(e, undefined, 4)}</pre>
+      </Fragment>,
+      document.querySelector("body")
+    );
+  }
 }
+async function onSubmit(event: MouseEvent) {
+  console.log("onSubmit");
+  console.log(event.type);
+
+  /* if (event instanceof KeyboardEvent && event.shiftKey && event.key === 'Enter')
+        return
+
+    if (event instanceof KeyboardEvent && event.key === 'Enter' && event.isComposing) {
+        return
+    }*/
+
+  // Simulate a click event on the button
+
+  if (!endDatePicker?.value) {
+    console.error("no endDatePicker.value");
+  }
+
+  if (!startDatePicker?.value) {
+    console.error("no startDatePicker.value");
+  }
+
+  if (event.type === "click" && startDatePicker && endDatePicker) {
+    console.log("onSubmit - click check");
+    // const rows = table.querySelectorAll("div[class*='transaction-row']")
+
+    const startDate = dateFormatter(startDatePicker.value);
+    const endDate = dateFormatter(endDatePicker.value);
+    console.log("onSubmit - post date");
+    /* const res = await Browser.runtime.sendMessage({
+            type: "get_transactions",
+            dateTo: startDate,
+            dateFrom: endDate
+        })*/
+
+    //  console.log('RESULTS')
+    //  console.log(res)
+    //  updateUserConfig({
+    //      fireflyAccessToken: "[insert token and uncomment this line]"
+    //  })
+
+    /*    console.log(`GOT: ${rows.length} actual records (for: ${startDate}->${endDate})`)
+        console.log(rows)
+
+      const transactionsToSend = Array.from(rows).map((r) => {
+            return {
+                date: r.getAttribute('data-date'),
+                transactionId: r.getAttribute('data-transaction-id'),
+                type: r.querySelector('.column-type').textContent.trim(),
+                details: r.querySelector('.transaction-detail-summary').textContent.trim(),
+                amount: r.querySelector('.column-amount .money').textContent.trim(),
+                balance: r.querySelector('.column-balance .money').textContent.trim(),
+            }
+        })
+
+        console.log(response)*/
+
+    //:SearchResponse
+    /*     const response = await Browser.runtime.sendMessage({
+            type: "get_transactions", options: {
+                accountId: 'anz',
+                startDate,
+                endDate
+            }})
+
+            console.log(response)
+    
+        if(!response){
+            console.error('got no existing budget')
+        }
+
+        console.error(`got existing tra ${response.length}`)*/
+  }
+}
+
+const onTableChange = function () {
+  console.log("table changed");
+};
+
+console.log("\n\n\n MAIN ANZ UI RAN 0");
+
+console.log("window.onload BEF");
+
+setTimeout(() => {
+  console.log("setTimeout updateUI");
+  updateUI();
+}, 1500);
+
+window.onload = function () {
+  console.log("MAIN ANZ UI 1 RAN ONLOAD");
+  updateUI();
+
+  try {
+    console.log("MAIN ANZ UI RAN ONLOAD - 2 MutationObserver");
+
+    const picker = new ElementFinder();
+    picker.setSelectorSet().then(() => {
+      picker._printAllChecks();
+      const rootEl = picker.getTransactionTable();
+
+      new MutationObserver(() => {
+        console.log("MAIN ANZ UI RAN ONLOAD - 3 updateUI()");
+        updateUI();
+      }).observe(rootEl, { childList: true });
+    });
+  } catch (e) {
+    console.info("error --> Could not update UI:\n", e.stack);
+  }
+};
 
 document.addEventListener("onload", () => {
-    console.log('onload');
-})
+  console.log("onload");
+});
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log('DOMContentLoaded');
-})
+  console.log("DOMContentLoaded");
+});
+console.log(window.onload);
+
+console.log("window.onload AFT");

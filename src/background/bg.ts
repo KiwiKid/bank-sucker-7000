@@ -37,25 +37,25 @@ Browser.runtime.onMessage.addListener((request) => {
 
 
 Browser.runtime.onMessage.addListener(async (message) => {
-  /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
-    if (message.type === "get_search_results") {
-        return getHtml(message.search)
-    }
+    /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
+      if (message.type === "get_search_results") {
+          return getHtml(message.search)
+      }
+  
+      if (message.type === "get_webpage_text") {
+          return getWebpageTitleAndText(message.url, message.html)
+      }*/
 
-    if (message.type === "get_webpage_text") {
-        return getWebpageTitleAndText(message.url, message.html)
-    }*/
-
-    if(message.type === 'get_transactions'){
+    if (message.type === 'get_transactions') {
         console.log('Browser.runtime.onMessage.addListener((message) => get_transactions ')
         console.log('OPTIONS PASSED')
         console.log(message.options)
         return getTransactions(message.options)
     }
 
-    if(message.type === 'set_transactions'){
+    if (message.type === 'set_transactions') {
         return setTransaction(message.options)
-        
+
         /*.then((trans) => {
             console.error('setTransaction:then-block')
 
@@ -69,7 +69,7 @@ Browser.runtime.onMessage.addListener(async (message) => {
         })*/
     }
 
-    
+
 })
 /*
 // Firefox does not support declarativeNetRequest.updateDynamicRules yet
