@@ -17,11 +17,13 @@ export interface TransactionRow {
 export interface AccountName {
     name: string,
 }
+type siblingRowField = 'transactionDate'
 
 export interface SelectorSet {
     accountName: string
     table:string
     rowPreProcessClick?: string
+    isOnSiblingRowField:siblingRowField[]
     tableRows: string
     transactionDate: string
     datePickerStart: string
@@ -158,6 +160,17 @@ export class ElementFinder {
         return document.querySelector(this.selectorSet?.accountName)
     }
 
+    setElementStatus(element:HTMLElement, success:boolean, message?:string, ){
+        if(success){
+            element.style.backgroundColor = 'green'
+        }else{
+            const mess = document.createElement('div')
+            mess.textContent = message;
+            element.append(mess)
+            element.style.backgroundColor = 'red'
+        }
+    }
+
     getRows(): TransactionRow[] {
 
         const rows = this.getTransactionTableRows()
@@ -165,27 +178,40 @@ export class ElementFinder {
             throw new Error('No transaction rows found');
         }
 
-        const res = Array.from(rows).map((row: HTMLElement) => {
+        if(this.selectorSet.rowPreProcessClick){
+            rows.forEach((r) => {
             if(this.selectorSet.rowPreProcessClick){
-                const clickElement:HTMLElement = row.querySelector(this.selectorSet.rowPreProcessClick);
-
+                const clickElement:HTMLElement = r.querySelector(this.selectorSet.rowPreProcessClick);
+                clickElement.style.transition = 'none'
                 if(clickElement){
                     clickElement.click()
                 }else{
                     console.error(`A rowPreProcessClick was configured, but the buttton for: \n\n row.querySelector(${this.selectorSet.rowPreProcessClick})`)
                 }
             }
+            })
+        }
+
+        const res = Array.from(rows).map((row: HTMLElement) => {
 
 
-            const dateText = row.querySelector(this.selectorSet?.transactionDate)
-            if (typeof dateText === 'undefined' || dateText === null) {
-                throw new Error(`Transaction row missing date attribute (${this.selectorSet?.transactionDate})`);
-            }
 
-            const date = new Date(dateText?.textContent?.trim());
-            if (isNaN(date.getTime())) {
-                throw new Error('Transaction row has invalid date attribute');
-            }
+                const useSiblingRow = this.selectorSet.isOnSiblingRowField && this.selectorSet.isOnSiblingRowField.includes('transactionDate')
+                const getDateRow = useSiblingRow ? row.nextElementSibling : row 
+                
+                const dateText:HTMLElement = getDateRow.querySelector(this.selectorSet?.transactionDate)
+                if (typeof dateText === 'undefined' || dateText === null) {
+                    throw new Error(`Transaction row missing date attribute (${this.selectorSet?.transactionDate})`);
+                }
+
+                const date = new Date(dateText?.textContent?.trim());
+                if (isNaN(date.getTime())) {
+                    const message = `Transaction row has invalid date attribute processed (${date}`
+                    this.setElementStatus(dateText, false, message)
+                    throw new Error(message);
+                }else{
+                    this.setElementStatus(dateText, true)
+                }
 
             /*  const typeEl = row.querySelector(this.selectorSet?.type);
               if (!typeEl) {
@@ -193,25 +219,37 @@ export class ElementFinder {
               }
               const type = typeEl.textContent.trim();*/
 
-            const titleEl = row.querySelector(this.selectorSet?.title);
+            const titleEl:HTMLElement = row.querySelector(this.selectorSet?.title);
             if (!titleEl) {
+                this.setElementStatus(titleEl, false)
                 throw new Error('Transaction missing titleEl element');
+            }else{
+                this.setElementStatus(titleEl, true)
+                titleEl.style.backgroundColor = 'green'
             }
+            
+
             const title = titleEl.textContent.trim();
 
-            const detailsSummaryEl = row.querySelector(this.selectorSet?.details);
+            const detailsSummaryEl:HTMLElement = row.querySelector(this.selectorSet?.details);
             if (!detailsSummaryEl) {
+                this.setElementStatus(detailsSummaryEl, false)
                 throw new Error('Transaction missing details element');
+            }else{
+                this.setElementStatus(detailsSummaryEl, true)
+
             }
             const details = detailsSummaryEl.textContent.trim();
 
-            let finalCreditAmount;
-            let finalDepositAmount;
+            let finalCreditAmount:string;
+            let finalDepositAmount:string;
             if (this.selectorSet?.drAmount && this.selectorSet?.crAmount) {
-                const drAmountEl = row.querySelector(this.selectorSet?.drAmount);
-                const creditAmountEl = row.querySelector(this.selectorSet?.crAmount);
+                const drAmountEl:HTMLElement = row.querySelector(this.selectorSet?.drAmount);
+                const creditAmountEl:HTMLElement = row.querySelector(this.selectorSet?.crAmount);
                 if (!drAmountEl && !creditAmountEl) {
                     throw new Error('Transaction row missing amount element');
+                }else{
+
                 }
 
                 finalCreditAmount = creditAmountEl?.textContent?.trim().replace('$', '').replace(',', '');
@@ -222,9 +260,9 @@ export class ElementFinder {
 
                 if (+creditAmount > 0) {
                     finalCreditAmount = creditAmount;
-                    finalDepositAmount = 0
+                    finalDepositAmount = '0'
                 } else {
-                    finalCreditAmount = 0;
+                    finalCreditAmount = '0';
                     finalDepositAmount = creditAmount;
                 }
             }
