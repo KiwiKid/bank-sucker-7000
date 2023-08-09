@@ -1,6 +1,7 @@
 import { h } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { getUserConfig, updateUserConfig } from "src/util/userConfig";
+import { ElementFinder } from "src/util/ElementFinder";
+import { getUserConfig, updateUserConfig, isValidUserConfig } from "src/util/userConfig";
 
 function SettingsConfig() {
   const [showConfig, setShowConfig] = useState(false);
@@ -12,23 +13,50 @@ function SettingsConfig() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     const newConfig = JSON.parse(inputValue);
 
     newConfig.firefly.token = tokenValue;
 
-    await updateUserConfig(newConfig).then((update) => {
-      setInputStatus("Uploaded");
-    });
-  };
+    await updateUserConfig(newConfig).then(() => {
+      setInputStatus("Uploaded "+new Date().toISOString());
+    }).catch((e) => {
+      setInputStatus(`failed ${JSON.stringify(e)}`);
+    })
+
+    const validConfigErrors = isValidUserConfig(newConfig)
+    if(validConfigErrors.length > 0){
+      const finder = new ElementFinder();
+      await finder.setSelectorSet();
+      const errors = finder._printAllChecks();
+      if(errors && errors.length == 0){
+      
+    } else {
+      setInputStatus(`${inputStatus} Errors: ${JSON.stringify(errors, null ,4)}`);
+    }
+    }else{
+      setInputStatus(`${inputStatus} Errors via isValidUserConfig  ${JSON.stringify(validConfigErrors, null ,4)}`);
+    }
+}
 
   const handleChange = (event) => {
     try {
       const res = JSON.parse(event.target.value);
-      setInputStatus("valid");
-      // setInputValue(JSON.stringify(res, undefined, 4));
+     if(isValidUserConfig(res)){
+        const finder = new ElementFinder();
+        const errors = finder._printAllChecks();
+        if(errors.length == 0){
+          setInputStatus("valid");
+
+        }else{
+          setInputStatus(JSON.stringify(errors, undefined, 4));
+
+        }
+            // setInputValue(JSON.stringify(res, undefined, 4));
+     }else{
+      throw 'Not valid'
+     }
     } catch (err) {
-      setInputStatus("Invalid Json");
+      setInputStatus(err.message);
     }
     setInputValue(event.target.value);
   };
@@ -50,6 +78,7 @@ function SettingsConfig() {
 
     fetchConfig();
   }, []);
+  
 
   const toggleShowConfig = () => {
     setShowConfig(!showConfig);
@@ -65,8 +94,8 @@ function SettingsConfig() {
       </button>
       {showConfig && (
         <form onSubmit={handleSubmit}>
-          <button type="submit">Submit</button>
-          <div>{inputStatus}</div>
+          <button type="submit">Save Config</button>
+          <pre>{inputStatus}</pre>
           <label for="config">Config</label>
           <textarea
             rows={30}

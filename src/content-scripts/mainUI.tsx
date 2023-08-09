@@ -5,6 +5,7 @@ import createShadowRoot from "src/util/createShadowRoot";
 import { dateFormatter } from "src/util/dateFormatter";
 
 import SettingsConfig from "src/components/SettingsConfig";
+import Rows from "src/util/Rows";
 
 let table: HTMLElement;
 let actionsPanel: HTMLElement;
@@ -35,10 +36,10 @@ async function updateUI() {
     endDatePicker = finder.getEndDatePicker();
 
     if (!endDatePicker || !startDatePicker) {
-      const button = document.querySelector<HTMLButtonElement>(
-        "button.transactions-filter-panel-toggle"
-      );
-      button.click();
+      const button = finder.getFilterTransactionsButton();
+        // "button.transactions-filter-panel-toggle"
+      // );
+      if(button) button.click();
 
       startDatePicker = finder.getStartDatePicker();
       endDatePicker = finder.getEndDatePicker();
@@ -50,7 +51,6 @@ async function updateUI() {
 
     console.log("updateUI 3");
 
-    if (actionsPanel) {
       table.addEventListener("DOMSubtreeModified", onTableChange);
       //btnSubmit.addEventListener("click", onSubmit)
 
@@ -67,32 +67,48 @@ async function updateUI() {
 
       console.log("appendChild 2");
 
+      if(!actionsPanel){
+        console.error('actionsPanel failed, adding to body')
+        actionsPanel = document.querySelectorAll('div')[0];
+        actionsPanel.prepend(shadowRootDiv);
+      }else{
+        actionsPanel.appendChild(shadowRootDiv);
+      }
+
       // shadowRootDiv.classList.add('wcg-toolbar')
-      actionsPanel.appendChild(shadowRootDiv);
+      
       console.log("appendChild");
+      let rows;
+
+
+      try{
+        rows = finder.getRows();
+      } catch(e) {
+        console.error('COULD NOT GET ROWS', e)
+      }
+
       render(
         <Fragment>
+          <Rows rows={rows} />
+                    <button onClick={onSubmit} class="import">
+                    Submit
+                  </button>
           <SettingsConfig />
-          <button onClick={onSubmit} class="actual-import">
-            Hello World
-          </button>
         </Fragment>,
         shadowRoot
       );
       //document.body.appendChild(p);
       console.log("render");
-    } else {
-      console.error("No action panel? getANZActionPanel");
-    }
   } catch (e: any) {
-    finder._printAllChecks();
+    const errors = finder._printAllChecks();
     render(
       <Fragment>
         Error Occured
         <SettingsConfig />
-        <pre>Error: {JSON.stringify(e, undefined, 4)}</pre>
+        <pre>Error: {JSON.stringify({message: e.message, stack: e.stack}, undefined, 4)}</pre>
+        <pre>{JSON.stringify(errors, null, 4)}</pre>
       </Fragment>,
-      document.querySelector("body")
+      document.querySelectorAll("div[class*='transactions-filter-panel-toggle']")[0]
     );
   }
 }

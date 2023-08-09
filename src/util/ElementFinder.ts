@@ -20,14 +20,17 @@ export interface AccountName {
 
 export interface SelectorSet {
     accountName: string
-    table: string
-    date: string
-    date_end: string
+    table:string
+    rowPreProcessClick?: string
+    tableRows: string
+    transactionDate: string
+    datePickerStart: string
+    datePickerEnd: string
     rootElm: string
     details: string
     title: string
-    import_button_location: string
-    filter_transaction_button: string
+    importButtonLocation: string
+    filterTransactionButton: string
     /**
      * Populate if deposits and withdraws are two seperate values (this is deposits)
      */
@@ -46,75 +49,109 @@ export const getAccountStatusElement = (): HTMLElement => {
 
 export class ElementFinder {
     selectorSet: SelectorSet | null
+    hasNoWebsite: boolean
 
     async setSelectorSet(overrideSet?: SelectorSet): Promise<void> {
-
+        console.log('setSelectorSet')
         const config = await getUserConfig();
 
+        // TODO: make this dynamic
         const thisConfig = config.firefly.accountExportConfig.filter(
-            (aec) => aec.website == "anz"
-        )
+            (aec):boolean => { 
+                if(aec.website == undefined){
+                    this.hasNoWebsite = true
+                    return true;
+                }else if(aec.website == "anz"){
+                    return true;
+                }
+                
+                return false
+            })
+
 
         if (!thisConfig || thisConfig.length == 0) {
+            console.log('NO CONFIG')
+
             console.error(thisConfig)
         } else {
+            console.log(`setSelectorSet SET ${overrideSet ? 'WITH OVERRIDE' : ''}`)
+
             this.selectorSet = overrideSet ? overrideSet : thisConfig[0].selectors;
+            console.log(this.selectorSet)
         }
     }
 
-    _printAllChecks(): void {
-        if (this.getStartDatePicker()) {
-            console.log('getStartDatePicker')
-        } else {
-            console.error('NO getStartDatePicker - check "date_end" in the selectors')
+    _printAllChecks(): string[] {
+        
+        //console.info(`SELECTOR SET: ${JSON.stringify(selectorSet, null, 4)}`)
+        const errorMessages: string[] = [];
+    
+        const element = this.getAddImportButtonLocation()
+        if (!element) {
+            errorMessages.push(`NO getAddImportButtonLocation found - check [accountExportConfig.selectors.importButtonLocation: ${this.selectorSet?.importButtonLocation}]`);
+        }
+    
+        if (!this.getAccountNameOnPage()) {
+            errorMessages.push(`NO getAccountNameOnPage - check "accountName" in the selectors [accountExportConfig.selectors.accountName: ${this.selectorSet?.accountName}]`);
+        }
+    
+        if (!this.getTransactionDate()) {
+            errorMessages.push(`NO getTransactionDate - check "date" in the selectors [accountExportConfig.selectors.transactionDate: ${this.selectorSet?.transactionDate}]`);
         }
 
-        if (this.getAccountNameOnPage()) {
-            console.log('getAccountNameOnPage')
-        } else {
-            console.error('NO getAccountNameOnPage - check "accountName" in the selectors')
+        if (!this.getStartDatePicker()) {
+            errorMessages.push(`NO getStartDatePicker - check "date" in the selectors [accountExportConfig.selectors.datePickerEnd: ${this.selectorSet?.datePickerEnd}]`);
+        }
+    
+        if (!this.getEndDatePicker()) {
+            errorMessages.push(`NO getEndDatePicker - check "date_end" in the selectors [accountExportConfig.selectors.date_end: ${this.selectorSet?.datePickerEnd}]`);
+        }
+    
+        if (!this.getTransactionTable()) {
+            errorMessages.push(`NO getTransactionTable - check "table" in the selectors [accountExportConfig.selectors.table: ${this.selectorSet?.table}]`);
         }
 
-
-        if (this.getStartDatePicker()) {
-            console.log('getStartDatePicker')
-        } else {
-            console.error('NO getStartDatePicker - check "date" in the selectors')
+        if (!this.hasNoWebsite) {
+            errorMessages.push(`NO hasNoWebsite!!! - check "accountExportConfig.website": ${this.selectorSet?.table}]`);
         }
 
-        if (this.getEndDatePicker()) {
-            console.log('getEndDatePicker')
-        } else {
-            console.error('NO getEndDatePicker - check "date_end" in the selectors')
+        if(!this.getTransactionTableRows()){
+            errorMessages.push(`NO rows - check [accountExportConfig.selectors.tableRows: ${this.selectorSet?.table}]`);
         }
-
-
-        if (this.getTransactionTable()) {
-            console.log('getTransactionTable')
-        } else {
-            console.error('NO getTransactionTable - check "table" in the selectors')
+    
+        if(errorMessages.length == 0){
+            console.log('\n\nALL GOOD TO GOOO\n\n')
         }
+    
+        return errorMessages;
     }
 
     getFilterTransactionsButton(): HTMLButtonElement {
-        return document.querySelector(this.selectorSet?.filter_transaction_button)
+        return document.querySelector(this.selectorSet?.filterTransactionButton)
     }
 
     getAddImportButtonLocation(): HTMLButtonElement {
-        return document.querySelector(this?.selectorSet?.import_button_location || `div[class*='transactions-action-panels']`)
+        return document.querySelector(this?.selectorSet?.importButtonLocation)
     }
-    //*[@id="ember1146"]
+
     getTransactionTable(): HTMLElement {
         return document.querySelector(this.selectorSet?.table)
     }
+    //*[@id="ember1146"]
+    getTransactionTableRows(): NodeListOf<HTMLElement> {
+        return document.querySelectorAll(this.selectorSet?.tableRows)
+    }
 
+    getTransactionDate():HTMLElement {
+        return document.querySelector(this.selectorSet?.transactionDate)
+    }
 
     getStartDatePicker(): HTMLInputElement {
-        return document.querySelector(this.selectorSet?.date)
+        return document.querySelector(this.selectorSet?.datePickerStart)
     }
 
     getEndDatePicker(): HTMLInputElement {
-        return document.querySelector(this.selectorSet?.date_end)
+        return document.querySelector(this.selectorSet?.datePickerEnd)
     }
 
     getAccountNameOnPage(): HTMLElement {
@@ -123,15 +160,26 @@ export class ElementFinder {
 
     getRows(): TransactionRow[] {
 
-        const rows = document.querySelectorAll(this.selectorSet?.table);
+        const rows = this.getTransactionTableRows()
         if (!rows || rows.length === 0) {
             throw new Error('No transaction rows found');
         }
 
         const res = Array.from(rows).map((row: HTMLElement) => {
-            const dateText = row.querySelector(this.selectorSet?.date)
+            if(this.selectorSet.rowPreProcessClick){
+                const clickElement:HTMLElement = row.querySelector(this.selectorSet.rowPreProcessClick);
+
+                if(clickElement){
+                    clickElement.click()
+                }else{
+                    console.error(`A rowPreProcessClick was configured, but the buttton for: \n\n row.querySelector(${this.selectorSet.rowPreProcessClick})`)
+                }
+            }
+
+
+            const dateText = row.querySelector(this.selectorSet?.transactionDate)
             if (typeof dateText === 'undefined' || dateText === null) {
-                throw new Error(`Transaction row missing date attribute (${this.selectorSet?.date})`);
+                throw new Error(`Transaction row missing date attribute (${this.selectorSet?.transactionDate})`);
             }
 
             const date = new Date(dateText?.textContent?.trim());

@@ -24,7 +24,7 @@ function ImportButton({onClick}:ImportButtonProps) {
         }
         }, [])
 
-        return (<button onClick={onClick} class="actual-import">Hello World</button>)
+        return (<button onClick={onClick} class="actual-import">Sumbit Import</button>)
     }
     
 

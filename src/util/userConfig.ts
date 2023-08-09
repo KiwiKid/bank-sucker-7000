@@ -23,21 +23,23 @@ const defaultConfig: UserConfig = {
                 selectors: {
                     accountName: `h1[class='account-name-heading']").querySelector("span[class='account-name']`,
                     table: `div[class*='transactions-list']`,
-                    date: `input[class*='date-range-start-date']`,
+                    transactionDate: `input[class*='date-range-start-date']`,
+                    datePickerStart: `input[class*='date-range-start-date']`,
+                    datePickerEnd: `input[class*='date-range-start-date']`,
+                    importButtonLocation: `body`,
+                    filterTransactionButton: 'body',
+                    rootElm: 'body',
                     details: ``,
                     title: ``,
                     drAmount: ``,
                     crAmount: ``,
                 }
-            },
+            }/*,
             {
                 website: 'simplicity',
                 accountNameOnBankSite: 'KiwiSaver Growth Fund',
                 fireflyAccountName: 'Simplicity Investment - Growth',
-                selectors: {
-
-                }
-            }
+            }*/
         ]
     }
 }
@@ -71,6 +73,43 @@ export type AccountConfig = {
     accountConfig: AccountExportConfig
     fireflyConfig: FireflyConfig
 }
+
+
+export function isValidUserConfig(obj:any):string[] {
+    const errors: string[] = [];
+
+    // Check if the main object and the firefly object are not undefined or null
+    if (!obj) errors.push('Main object is undefined or null.');
+    if (!obj.firefly) errors.push('Firefly object is undefined or null.');
+
+    // Check if accountExportConfig is an array and has at least one item
+    if (!Array.isArray(obj.firefly.accountExportConfig)) {
+        errors.push('accountExportConfig is not an array.');
+    } else if (obj.firefly.accountExportConfig.length === 0) {
+        errors.push('accountExportConfig is empty.');
+    } else {
+        for (const account of obj.firefly.accountExportConfig) {
+            // Check required fields in each account object
+            if (typeof account.website !== 'string' || !account.website) errors.push('Account website is invalid.');
+            if (typeof account.fireflyAccountName !== 'string' || !account.fireflyAccountName) errors.push('Firefly account name is invalid.');
+            if (typeof account.accountNameOnBankSite !== 'string' || !account.accountNameOnBankSite) errors.push('Account name on bank site is invalid.');
+
+            // Check selectors
+            if (!account.selectors) {
+                errors.push('Selectors are missing in account.');
+            } else {
+                for (const selector in account.selectors) {
+                    if (typeof account.selectors[selector] !== 'string') {
+                        errors.push(`Selector ${selector} is not a string.`);
+                    }
+                }
+            }
+        }
+    }
+
+    return errors;
+}
+
 
 export async function getUserConfig(): Promise<UserConfig> {
     const config = await Browser.storage.sync.get(defaultConfig)

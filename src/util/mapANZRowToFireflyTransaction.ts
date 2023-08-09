@@ -1,7 +1,7 @@
 import { getTransactionTypeProperty } from "src/content-scripts/api";
 import { TransactionSplitStore } from 'firefly-iii-typescript-sdk-fetch'
 import { AccountConfig } from "./userConfig";
-import { TransactionRow } from "./anzElementFinder";
+import { TransactionRow } from "./ElementFinder";
 
 const getBaseFields = (t:TransactionRow, ac:AccountConfig, version:string):TransactionSplitStore => {
     const isWithdrawal = t.depositAmount?.length > 0

@@ -4,7 +4,8 @@ import Browser from "webextension-polyfill"
 import { SearchResult } from "./ddg_search"
 import { getFireflyConfig } from "src/util/userConfig"
 import { ListTransactionRequest, AccountsApi, Configuration, TransactionsApi, TransactionRead, TransactionSplitStore, TransactionTypeProperty } from 'firefly-iii-typescript-sdk-fetch'
-import { TransactionRow } from "src/util/anzElementFinder"
+import { TransactionRow } from "src/util/ElementFinder"
+
 
 const cleanText = (text: string) =>
     text.trim()

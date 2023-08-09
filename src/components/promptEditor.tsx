@@ -82,7 +82,7 @@ const PromptEditor = (
 
     const handleDeleteBtnClick = () => {
         if (deleteBtnText === "delete") {
-            setDeleteBtnText("check")
+            setDeleteBtnText("check2")
         } else {
             handleDelete()
         }
