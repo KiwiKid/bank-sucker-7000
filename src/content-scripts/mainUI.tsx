@@ -18,7 +18,7 @@ let rows;
 
 async function getRows(){
   try{
-    return finder.getRows();
+    return await finder.getRows();
   } catch(e) {
     console.error('COULD NOT GET ROWS', e)
   }
@@ -92,7 +92,7 @@ async function updateUI() {
 
       render(
         <Fragment>
-          <button onClick={() => getRows()} class="import">Get Rows</button>
+          <button onClick={async () => await getRows()} class="import">Get Rows</button>
           <Rows rows={rows} />
                     <button onClick={onSubmit} class="import">
                     Submit

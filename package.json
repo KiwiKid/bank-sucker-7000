@@ -9,12 +9,13 @@
     "build-prod-min": "node build.mjs --create-zips --update-version --minify",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
-    "watch": "chokidar src -c \"npm run build-dev\""
+    "watch": "chokidar \"src/**/*.(js|ts)\" -c \"npm run build-prod\" -i \"build\""
   },
   "dependencies": {
     "@mozilla/readability": "^0.4.4",
     "@types/firefox-webext-browser": "^111.0.1",
     "cheerio": "1.0.0-rc.12",
+    "dayjs": "^1.11.9",
     "firefly-iii-typescript-sdk-fetch": "^1.0.0",
     "linkedom": "^0.14.25",
     "lodash-es": "^4.17.21",
