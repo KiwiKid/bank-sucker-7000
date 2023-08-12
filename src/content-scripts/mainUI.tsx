@@ -14,6 +14,15 @@ let startDatePicker: HTMLInputElement;
 let endDatePicker: HTMLInputElement;
 
 let finder: ElementFinder;
+let rows;
+
+async function getRows(){
+  try{
+    return finder.getRows();
+  } catch(e) {
+    console.error('COULD NOT GET ROWS', e)
+  }
+}
 
 async function updateUI() {
   try {
@@ -78,17 +87,12 @@ async function updateUI() {
       // shadowRootDiv.classList.add('wcg-toolbar')
       
       console.log("appendChild");
-      let rows;
 
 
-      try{
-        rows = finder.getRows();
-      } catch(e) {
-        console.error('COULD NOT GET ROWS', e)
-      }
 
       render(
         <Fragment>
+          <button onClick={() => getRows()} class="import">Get Rows</button>
           <Rows rows={rows} />
                     <button onClick={onSubmit} class="import">
                     Submit
@@ -100,7 +104,11 @@ async function updateUI() {
       //document.body.appendChild(p);
       console.log("render");
   } catch (e: any) {
+    debugger;
     const errors = finder._printAllChecks();
+    console.error('Failed to update UI, rendering error', {
+      e
+    })
     render(
       <Fragment>
         Error Occured
@@ -108,7 +116,7 @@ async function updateUI() {
         <pre>Error: {JSON.stringify({message: e.message, stack: e.stack}, undefined, 4)}</pre>
         <pre>{JSON.stringify(errors, null, 4)}</pre>
       </Fragment>,
-      document.querySelectorAll("div[class*='transactions-filter-panel-toggle']")[0]
+      finder.getAddImportButtonLocation()
     );
   }
 }

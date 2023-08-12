@@ -1,8 +1,13 @@
 import { getUserConfig } from "./userConfig"
+import dayjs, { Dayjs } from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+
+dayjs.extend(customParseFormat);
+
 
 export interface TransactionRow {
     htmlElement: HTMLElement
-    date: Date
+    date: Dayjs | Error
     /**
      * This field can be used to ensure fields aren't duplicates (will be inserted as 'node')
      */
@@ -17,22 +22,33 @@ export interface TransactionRow {
 export interface AccountName {
     name: string,
 }
-type siblingRowField = 'transactionDate'
+type SiblingRowField = 'transactionDate'
+
+type RemoveType = '[at]' | '[Processed on]'
+
+export interface DateSelectorSet {
+    transactionDateSelector: string,
+    dayjsDateParseFormat?:string
+    dayjsDateParseRemoveRegex?:RemoveType[]
+}
 
 export interface SelectorSet {
+    importButtonLocation: string
     accountName: string
     table:string
     rowPreProcessClick?: string
-    isOnSiblingRowField:siblingRowField[]
+    isOnSiblingRowField:SiblingRowField[]
     tableRows: string
-    transactionDate: string
-    datePickerStart: string
-    datePickerEnd: string
-    rootElm: string
     details: string
     title: string
-    importButtonLocation: string
-    filterTransactionButton: string
+    date: DateSelectorSet
+    fallbackDate: DateSelectorSet
+    pageActions:{ 
+        datePickerStart: string
+        datePickerEnd: string
+        filterTransactionButton: string
+    }
+    rootElm: string
     /**
      * Populate if deposits and withdraws are two seperate values (this is deposits)
      */
@@ -89,28 +105,28 @@ export class ElementFinder {
         const errorMessages: string[] = [];
     
         const element = this.getAddImportButtonLocation()
-        if (!element) {
+       /* if (!element) {
             errorMessages.push(`NO getAddImportButtonLocation found - check [accountExportConfig.selectors.importButtonLocation: ${this.selectorSet?.importButtonLocation}]`);
         }
     
         if (!this.getAccountNameOnPage()) {
-            errorMessages.push(`NO getAccountNameOnPage - check "accountName" in the selectors [accountExportConfig.selectors.accountName: ${this.selectorSet?.accountName}]`);
+            errorMessages.push(`NO getAccountNameOnPage - [accountExportConfig.selectors.accountName: ${this.selectorSet?.accountName}]`);
         }
     
-        if (!this.getTransactionDate()) {
-            errorMessages.push(`NO getTransactionDate - check "date" in the selectors [accountExportConfig.selectors.transactionDate: ${this.selectorSet?.transactionDate}]`);
+       if (!this.getTransactionDate()) {
+            errorMessages.push(`NO getTransactionDate -[accountExportConfig.selectors.transactionDate: ${this.selectorSet?.transactionDate}]`);
         }
 
         if (!this.getStartDatePicker()) {
-            errorMessages.push(`NO getStartDatePicker - check "date" in the selectors [accountExportConfig.selectors.datePickerEnd: ${this.selectorSet?.datePickerEnd}]`);
+            errorMessages.push(`NO getStartDatePicker - [accountExportConfig.selectors.datePickerEnd: ${this.selectorSet?.date.datePickerEnd}]`);
         }
     
         if (!this.getEndDatePicker()) {
-            errorMessages.push(`NO getEndDatePicker - check "date_end" in the selectors [accountExportConfig.selectors.date_end: ${this.selectorSet?.datePickerEnd}]`);
+            errorMessages.push(`NO getEndDatePicker -[accountExportConfig.selectors.date_end: ${this.selectorSet?.datePickerEnd}]`);
         }
     
         if (!this.getTransactionTable()) {
-            errorMessages.push(`NO getTransactionTable - check "table" in the selectors [accountExportConfig.selectors.table: ${this.selectorSet?.table}]`);
+            errorMessages.push(`NO getTransactionTable -[accountExportConfig.selectors.table: ${this.selectorSet?.table}]`);
         }
 
         if (!this.hasNoWebsite) {
@@ -123,13 +139,13 @@ export class ElementFinder {
     
         if(errorMessages.length == 0){
             console.log('\n\nALL GOOD TO GOOO\n\n')
-        }
+        }*/
     
         return errorMessages;
     }
 
     getFilterTransactionsButton(): HTMLButtonElement {
-        return document.querySelector(this.selectorSet?.filterTransactionButton)
+        return document.querySelector(this.selectorSet?.pageActions?.filterTransactionButton)
     }
 
     getAddImportButtonLocation(): HTMLButtonElement {
@@ -145,15 +161,15 @@ export class ElementFinder {
     }
 
     getTransactionDate():HTMLElement {
-        return document.querySelector(this.selectorSet?.transactionDate)
+        return document.querySelector(this.selectorSet?.date.transactionDateSelector)
     }
 
     getStartDatePicker(): HTMLInputElement {
-        return document.querySelector(this.selectorSet?.datePickerStart)
+        return document.querySelector(this.selectorSet?.pageActions?.datePickerStart)
     }
 
     getEndDatePicker(): HTMLInputElement {
-        return document.querySelector(this.selectorSet?.datePickerEnd)
+        return document.querySelector(this.selectorSet?.pageActions?.datePickerEnd)
     }
 
     getAccountNameOnPage(): HTMLElement {
@@ -168,6 +184,44 @@ export class ElementFinder {
             mess.textContent = message;
             element.append(mess)
             element.style.backgroundColor = 'red'
+        }
+    }
+
+    useSiblingRowIfConfigured(fieldName:SiblingRowField, row:HTMLElement){
+        if(this.selectorSet.isOnSiblingRowField.includes(fieldName)){
+            return row.nextElementSibling
+        }
+
+        return row;
+    }
+
+    parseDateFromRow(row:HTMLElement, dateSelector:DateSelectorSet): Error | Dayjs {
+        const dateText:HTMLElement = this.useSiblingRowIfConfigured('transactionDate', row).querySelector(dateSelector.transactionDateSelector)
+
+        const dateFormat = dateSelector.dayjsDateParseFormat ?? 'ddd D MMM YYYY h:mm a';
+        let dateToProcess = dateText?.textContent?.trim()
+
+        if(!dateToProcess){
+            return new Error(`No date text found to process for:\n\n\t${dateSelector.transactionDateSelector}`)
+        }
+        dateSelector.dayjsDateParseRemoveRegex.forEach((rr) => {
+            switch(rr){
+                case '[at]':
+                    dateToProcess = dateToProcess.replace(/ at /g, ' ')
+                case '[Processed on]':
+                dateToProcess = dateToProcess.replace(/Processed on /g, ' ')
+                default:
+            }
+        })
+        
+        const date = dayjs(dateToProcess, { format: dateFormat});
+        if (!date.isValid()) {
+            const message = `Date could not be processed\n (Before:${dateText?.textContent} --> \nAfter: ${dateToProcess} --> \n  [${dateFormat}] \nAdjust the date format (selectorSet.dayjsDateParseFormat) and (optionally) replace characters before parse \nCurrent:${dateSelector.transactionDateSelector}`
+            this.setElementStatus(dateText, false, message)
+            return new Error(message);
+        }else{
+            this.setElementStatus(dateText, true)
+            return date;
         }
     }
 
@@ -192,26 +246,21 @@ export class ElementFinder {
             })
         }
 
-        const res = Array.from(rows).map((row: HTMLElement) => {
 
+        const res = Array.from(rows).map((row: HTMLElement) => {               
+            const dateOrError = this.selectorSet.date ? this.parseDateFromRow(row, this.selectorSet.date) : new Error("No this.selectorSet.date configured")
+            if('message' in dateOrError){
+                console.error(`Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}`)
+                if(this.selectorSet.fallbackDate){
+                    console.error(`Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}`)
 
-
-                const useSiblingRow = this.selectorSet.isOnSiblingRowField && this.selectorSet.isOnSiblingRowField.includes('transactionDate')
-                const getDateRow = useSiblingRow ? row.nextElementSibling : row 
-                
-                const dateText:HTMLElement = getDateRow.querySelector(this.selectorSet?.transactionDate)
-                if (typeof dateText === 'undefined' || dateText === null) {
-                    throw new Error(`Transaction row missing date attribute (${this.selectorSet?.transactionDate})`);
-                }
-
-                const date = new Date(dateText?.textContent?.trim());
-                if (isNaN(date.getTime())) {
-                    const message = `Transaction row has invalid date attribute processed (${date}`
-                    this.setElementStatus(dateText, false, message)
-                    throw new Error(message);
+                    this.parseDateFromRow(row, this.selectorSet.fallbackDate)
                 }else{
-                    this.setElementStatus(dateText, true)
+                    console.error(`Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}\n\nTry setting a selectorSet.fallbackDate`)
                 }
+            }else {
+                console.log(`good date - ${dateOrError.toISOString()}`)
+            }
 
             /*  const typeEl = row.querySelector(this.selectorSet?.type);
               if (!typeEl) {
@@ -269,8 +318,8 @@ export class ElementFinder {
 
             return {
                 htmlElement: row
-                , transactionId: `via bank-sucker-7000_${title?.length > 0 ? title : details}_${finalDepositAmount?.length > 0 ? `${finalDepositAmount}_` : '' ?? ''}${finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ''}${date.toISOString().slice(0, 10)}`
-                , date
+                , transactionId: `via bank-sucker-7000_${title?.length > 0 ? title : details}_${finalDepositAmount?.length > 0 ? `${finalDepositAmount}_` : '' ?? ''}${finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ''}${'message' in dateOrError ? `${dateOrError.message} \n${dateOrError.stack}` : dateOrError.toISOString().slice(0, 10)}`
+                , date: dateOrError
                 //  , type
                 , title
                 , details
