@@ -1,4 +1,4 @@
-import { ElementFinder } from "src/util/ElementFinder";
+import { ElementFinder, GetRowsMode } from "src/util/ElementFinder";
 import "../style/base.css";
 import { render, h, Fragment } from "preact";
 import createShadowRoot from "src/util/createShadowRoot";
@@ -16,11 +16,11 @@ let endDatePicker: HTMLInputElement;
 let finder: ElementFinder;
 let rows;
 
-async function getRows(){
-  try{
-    return await finder.getRows();
-  } catch(e) {
-    console.error('COULD NOT GET ROWS', e)
+async function getRows(mode: GetRowsMode) {
+  try {
+    return await finder.getRows(mode);
+  } catch (e) {
+    console.error("COULD NOT GET ROWS", e);
   }
 }
 
@@ -46,9 +46,9 @@ async function updateUI() {
 
     if (!endDatePicker || !startDatePicker) {
       const button = finder.getFilterTransactionsButton();
-        // "button.transactions-filter-panel-toggle"
+      // "button.transactions-filter-panel-toggle"
       // );
-      if(button) button.click();
+      if (button) button.click();
 
       startDatePicker = finder.getStartDatePicker();
       endDatePicker = finder.getEndDatePicker();
@@ -60,60 +60,65 @@ async function updateUI() {
 
     console.log("updateUI 3");
 
-      table.addEventListener("DOMSubtreeModified", onTableChange);
-      //btnSubmit.addEventListener("click", onSubmit)
+    // table.addEventListener("DOMSubtreeModified", onTableChange);
+    //btnSubmit.addEventListener("click", onSubmit)
 
-      // const textareaParentParent = table.parentElement.parentElement
-      //textareaParentParent.style.flexDirection = 'column'
-      // textareaParentParent.parentElement.style.flexDirection = 'column'
-      // textareaParentParent.parentElement.style.gap = '0px'
-      // textareaParentParent.parentElement.style.marginBottom = '0.5em'
-      console.log("appendChild 1");
+    // const textareaParentParent = table.parentElement.parentElement
+    //textareaParentParent.style.flexDirection = 'column'
+    // textareaParentParent.parentElement.style.flexDirection = 'column'
+    // textareaParentParent.parentElement.style.gap = '0px'
+    // textareaParentParent.parentElement.style.marginBottom = '0.5em'
+    console.log("appendChild 1");
 
-      const { shadowRootDiv, shadowRoot } = await createShadowRoot(
-        "content-scripts/mainUI.css"
-      );
+    const { shadowRootDiv, shadowRoot } = await createShadowRoot(
+      "content-scripts/mainUI.css"
+    );
 
-      console.log("appendChild 2");
+    console.log("appendChild 2");
 
-      if(!actionsPanel){
-        console.error('actionsPanel failed, adding to body')
-        actionsPanel = document.querySelectorAll('div')[0];
-        actionsPanel.prepend(shadowRootDiv);
-      }else{
-        actionsPanel.appendChild(shadowRootDiv);
-      }
+    if (!actionsPanel) {
+      console.error("actionsPanel failed, adding to body");
+      actionsPanel = document.querySelectorAll("div")[0];
+      actionsPanel.prepend(shadowRootDiv);
+    } else {
+      actionsPanel.appendChild(shadowRootDiv);
+    }
 
-      // shadowRootDiv.classList.add('wcg-toolbar')
-      
-      console.log("appendChild");
+    // shadowRootDiv.classList.add('wcg-toolbar')
 
+    console.log("appendChild");
 
-
-      render(
-        <Fragment>
-          <button onClick={async () => await getRows()} class="import">Get Rows</button>
-          <Rows rows={rows} />
-                    <button onClick={onSubmit} class="import">
-                    Submit
-                  </button>
-          <SettingsConfig />
-        </Fragment>,
-        shadowRoot
-      );
-      //document.body.appendChild(p);
-      console.log("render");
+    render(
+      <Fragment>
+        <button onClick={async () => await getRows("dry_run")} class="import">
+          Scan Rows
+        </button>
+        <button onClick={async () => await getRows("upload")} class="import">
+          Upload Rows
+        </button>
+        <Rows rows={rows} />
+        <button onClick={onSubmit} class="import">
+          Submit
+        </button>
+        <SettingsConfig />
+      </Fragment>,
+      shadowRoot
+    );
+    //document.body.appendChild(p);
+    console.log("render");
   } catch (e: any) {
-    debugger;
     const errors = finder._printAllChecks();
-    console.error('Failed to update UI, rendering error', {
-      e
-    })
+    console.error("Failed to update UI, rendering error", {
+      e,
+    });
     render(
       <Fragment>
         Error Occured
         <SettingsConfig />
-        <pre>Error: {JSON.stringify({message: e.message, stack: e.stack}, undefined, 4)}</pre>
+        <pre>
+          Error:{" "}
+          {JSON.stringify({ message: e.message, stack: e.stack }, undefined, 4)}
+        </pre>
         <pre>{JSON.stringify(errors, null, 4)}</pre>
       </Fragment>,
       finder.getAddImportButtonLocation()
@@ -193,14 +198,10 @@ async function onSubmit(event: MouseEvent) {
         console.error(`got existing tra ${response.length}`)*/
   }
 }
-
+/*
 const onTableChange = function () {
   console.log("table changed");
-};
-
-console.log("\n\n\n MAIN ANZ UI RAN 0");
-
-console.log("window.onload BEF");
+};*/
 
 setTimeout(() => {
   console.log("setTimeout updateUI");

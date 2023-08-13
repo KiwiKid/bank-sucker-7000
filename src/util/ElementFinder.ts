@@ -1,12 +1,18 @@
-import { getUserConfig } from "./userConfig";
+import {
+  AccountExportConfig,
+  FireflyConfig,
+  getUserConfig,
+} from "./userConfig";
 import dayjs, { Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import { FireflyUploader } from "./FireflyUploader";
 
 dayjs.extend(customParseFormat);
 
+export type GetRowsMode = "upload" | "dry_run";
 export interface TransactionRow {
   htmlElement: HTMLElement;
-  date: Dayjs | Error;
+  date: Dayjs;
   /**
    * This field can be used to ensure fields aren't duplicates (will be inserted as 'node')
    */
@@ -16,6 +22,7 @@ export interface TransactionRow {
   depositAmount?: string;
   creditAmount?: string;
   currency: string;
+  error: Error | null;
 }
 
 export interface AccountName {
@@ -70,14 +77,15 @@ export const getAccountStatusElement = (): HTMLElement => {
 export class ElementFinder {
   selectorSet: SelectorSet | null;
   hasNoWebsite: boolean;
+  fireflyUploader: FireflyUploader;
 
   async setSelectorSet(overrideSet?: SelectorSet): Promise<void> {
     console.log("setSelectorSet");
     const config = await getUserConfig();
 
     // TODO: make this dynamic
-    const thisConfig = config.firefly.accountExportConfig.filter(
-      (aec): boolean => {
+    const thisConfig: AccountExportConfig =
+      config.firefly.accountExportConfig.find((aec): boolean => {
         if (aec.website == undefined) {
           this.hasNoWebsite = true;
           return true;
@@ -86,17 +94,18 @@ export class ElementFinder {
         }
 
         return false;
-      }
-    );
+      });
 
-    if (!thisConfig || thisConfig.length == 0) {
+    this.fireflyUploader = new FireflyUploader(config.firefly, thisConfig);
+
+    if (!thisConfig) {
       console.log("NO CONFIG");
 
       console.error(thisConfig);
     } else {
       console.log(`setSelectorSet SET ${overrideSet ? "WITH OVERRIDE" : ""}`);
 
-      this.selectorSet = overrideSet ? overrideSet : thisConfig[0].selectors;
+      this.selectorSet = overrideSet ? overrideSet : thisConfig.selectors;
       console.log(this.selectorSet);
     }
   }
@@ -202,6 +211,50 @@ export class ElementFinder {
     return row;
   }
 
+  rowPreClickIsDone(row: HTMLElement): boolean {
+    const conditionMet = row.querySelector(
+      this.selectorSet.preProcessClick.rowPreProcessClickDone
+    );
+    return !!conditionMet;
+  }
+
+  rowPreClick(row: HTMLElement): Promise<boolean> {
+    return new Promise<boolean>((reject, resolve) => {
+      if (!this.selectorSet?.preProcessClick) {
+        resolve(false);
+      }
+      console.log(
+        `Pre process clicking - start: ${this.selectorSet.preProcessClick.rowPreProcessClick} \n[Done: ${this.selectorSet.preProcessClick.rowPreProcessClickDone}]`
+      );
+
+      const clickElement: HTMLElement = row.querySelector(
+        this.selectorSet.preProcessClick.rowPreProcessClick
+      );
+      if (clickElement) {
+        clickElement.style.transition = "none";
+
+        const pollingInterval = setInterval(() => {
+          const conditionMet = this.rowPreClickIsDone(row);
+
+          if (conditionMet) {
+            console.log("conditionMet");
+            clearInterval(pollingInterval); // Stop polling
+            resolve(true);
+          } else {
+            console.log("conditionNOTMet");
+          }
+        }, 100);
+
+        clickElement.click();
+      } else {
+        console.error(
+          `A rowPreProcessClick was configured, but the button for: \n\n row.querySelector(${this.selectorSet.preProcessClick.rowPreProcessClick}) was not found.`
+        );
+        resolve(false);
+      }
+    });
+  }
+
   parseDateFromRow(
     row: HTMLElement,
     dateSelector: DateSelectorSet
@@ -224,8 +277,10 @@ export class ElementFinder {
       switch (rr) {
         case "[at]":
           dateToProcess = dateToProcess.replace(/ at /g, " ");
+          break;
         case "[Processed on]":
           dateToProcess = dateToProcess.replace(/Processed on /g, " ");
+          break;
         default:
       }
     });
@@ -235,64 +290,37 @@ export class ElementFinder {
       const message = `Date could not be processed\n (Before:${dateText?.textContent} --> \nAfter: ${dateToProcess} --> \n  [${dateFormat}] \nAdjust the date format (selectorSet.dayjsDateParseFormat) and (optionally) replace characters before parse \nCurrent:${dateSelector.transactionDateSelector}`;
       this.setElementStatus(dateText, false, message);
       return new Error(message);
-    } else {
-      this.setElementStatus(dateText, true);
-      return date;
     }
+    this.setElementStatus(dateText, true);
+    return date;
   }
 
-  async getRows(): Promise<TransactionRow[]> {
-    const rows = this.getTransactionTableRows();
-    if (!rows || rows.length === 0) {
-      throw new Error("No transaction rows found");
-    }
+  async getRow(row: HTMLElement, mode: GetRowsMode): Promise<TransactionRow> {
+    //return async (row: HTMLElement): Promise<TransactionRow> => {
+    try {
+      console.log(`Row process start ${JSON.stringify(row.attributes)}`);
 
-    const clickPromises = Array.from(rows).map((r) => {
-      return new Promise<void>((resolve, reject) => {
-        if (!this.selectorSet?.preProcessClick) {
-          resolve();
-        }
-        console.log(
-          `Pre process clicking - start: ${this.selectorSet.preProcessClick.rowPreProcessClick} \n[Done: ${this.selectorSet.preProcessClick.rowPreProcessClickDone}]`
-        );
-
-        const clickElement: HTMLElement = r.querySelector(
-          this.selectorSet.preProcessClick.rowPreProcessClick
-        );
-        make this run one at a time, before processing
-        if (clickElement) {
-          clickElement.style.transition = "none";
-
-          let pollingInterval = setInterval(() => {
-            // Here, check for your condition. For example:
-            const conditionMet = r.querySelector(
-              this.selectorSet.preProcessClick.rowPreProcessClickDone
-            );
-
-            if (conditionMet) {
-              clearInterval(pollingInterval); // Stop polling
-              resolve();
-            }
-          }, 100);
-
-          clickElement.click();
-        } else {
+      if (this.selectorSet.preProcessClick && !this.rowPreClickIsDone(row)) {
+        const didClick = await this.rowPreClick(row).catch((e) => {
+          /* This is being rejected, but its not causing issues atm... sorry future me
+           
+           console.error("this.rowPreClick(row) failed", {
+              message: e.message,
+              stack: e.stack,
+            });*/
+        });
+        if (!didClick && !this.rowPreClickIsDone(row)) {
           console.error(
-            `A rowPreProcessClick was configured, but the button for: \n\n row.querySelector(${this.selectorSet.preProcessClick.rowPreProcessClick}) was not found.`
+            `Expected preProcessClick ${JSON.stringify(row.attributes)}`
           );
-          reject(); // If the button was not found, we'll still resolve the promise to avoid deadlocks.
+        } else {
+          console.log(`didClick ${JSON.stringify(row.attributes)}`);
         }
-        //reject();
-      });
-    });
+      }
 
-    const clickRes = await Promise.allSettled(clickPromises);
-    console.log(`Pre process clicking - complete ${clickRes.length} click`);
+      let dateRes: Dayjs;
 
-    const res = Array.from(rows).map((row: HTMLElement) => {
-      console.log(`Row process start ${row.attributes}`);
-
-      const dateOrError = this.selectorSet.date
+      const dateOrError: Dayjs | Error = this.selectorSet.date
         ? this.parseDateFromRow(row, this.selectorSet.date)
         : new Error("No this.selectorSet.date configured");
       if ("message" in dateOrError) {
@@ -303,22 +331,34 @@ export class ElementFinder {
           console.error(
             `Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}`
           );
+          const fallbackDateOrError: Dayjs | Error = this.selectorSet.date
+            ? this.parseDateFromRow(row, this.selectorSet.fallbackDate)
+            : new Error(
+                "Primary date error, consider configuring a selectors.fallbackDate"
+              );
 
-          this.parseDateFromRow(row, this.selectorSet.fallbackDate);
+          if ("message" in fallbackDateOrError) {
+            console.error(
+              `Error parsing fallback date: ${fallbackDateOrError.message}\n\n${fallbackDateOrError.stack}`
+            );
+          } else {
+            dateRes = fallbackDateOrError;
+          }
         } else {
           console.error(
             `Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}\n\nTry setting a selectorSet.fallbackDate`
           );
         }
       } else {
+        dateRes = dateOrError;
         console.log(`good date - ${dateOrError.toISOString()}`);
       }
 
       /*  const typeEl = row.querySelector(this.selectorSet?.type);
-                if (!typeEl) {
-                    throw new Error('Transaction row missing type element');
-                }
-                const type = typeEl.textContent.trim();*/
+              if (!typeEl) {
+                  throw new Error('Transaction row missing type element');
+              }
+              const type = typeEl.textContent.trim();*/
 
       const titleEl: HTMLElement = row.querySelector(this.selectorSet?.title);
       if (!titleEl) {
@@ -380,27 +420,72 @@ export class ElementFinder {
         }
       }
 
-      return {
+      const rowResult = {
         htmlElement: row,
         transactionId: `via bank-sucker-7000_${
           title?.length > 0 ? title : details
         }_${
           finalDepositAmount?.length > 0 ? `${finalDepositAmount}_` : "" ?? ""
-        }${finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ""}${
-          "message" in dateOrError
-            ? `${dateOrError.message} \n${dateOrError.stack}`
-            : dateOrError.toISOString().slice(0, 10)
-        }`,
-        date: dateOrError,
-        //  , type
+        }${finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ""}`,
+        date: "millisecond" in dateRes ? dateRes : null,
         title,
         details,
         depositAmount: finalDepositAmount,
         creditAmount: finalCreditAmount,
         currency: "NZD",
+        error: "message" in dateOrError ? dateOrError : null,
       };
-    });
 
-    return res;
+      const summaryNode = document.createElement("div");
+      const res = await this.fireflyUploader.uploadTransaction(rowResult, mode);
+
+      if ("type" in res && res.type == "success") {
+        const uploadRes = document.createElement("div");
+        uploadRes.innerHTML = `<div>${
+          mode == "dry_run" ? "IS DRY RUN" : ""
+        }<textarea>${JSON.stringify(res, null, 4)}</textarea></div>`;
+        summaryNode.appendChild(uploadRes);
+      } else {
+        row.style.backgroundColor = "red";
+        const errorNode = document.createElement("div");
+        errorNode.textContent = `${JSON.stringify(res)}`;
+        summaryNode.appendChild(errorNode);
+      }
+      const allRes = document.createElement("div");
+
+      allRes.innerHTML = `${JSON.stringify(rowResult, null, 4)}`;
+      summaryNode.appendChild(allRes);
+
+      row.appendChild(summaryNode);
+
+      return rowResult;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async getRows(mode: GetRowsMode): Promise<TransactionRow[]> {
+    const rows = this.getTransactionTableRows();
+    if (!rows || rows.length === 0) {
+      throw new Error("No transaction rows found");
+    }
+
+    const res: PromiseSettledResult<TransactionRow>[] =
+      await Promise.allSettled(
+        Array.from(rows).map((row) => this.getRow(row, mode))
+      );
+
+    const failed = res.filter((r) => r.status == "rejected");
+    if (failed.length > 0) {
+      console.error(`==== SOME ROWS FAILED === \n\n ${JSON.stringify(failed)}`);
+    }
+    const success = res.filter(
+      (r) => r.status == "fulfilled"
+    ) as PromiseFulfilledResult<TransactionRow>[];
+
+    const data = success.map((s) => s.value);
+    // console.log(`=== SUCCESS ==== \n\n ${JSON.stringify(data, null, 4)}`);
+
+    return data;
   }
 }
