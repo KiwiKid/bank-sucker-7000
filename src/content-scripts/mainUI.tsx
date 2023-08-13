@@ -83,6 +83,7 @@ async function updateUI() {
     } else {
       actionsPanel.appendChild(shadowRootDiv);
     }
+    finder.addRowButtons();
 
     // shadowRootDiv.classList.add('wcg-toolbar')
 

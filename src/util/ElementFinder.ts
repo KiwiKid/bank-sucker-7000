@@ -4,10 +4,14 @@ import {
   getUserConfig,
 } from "./userConfig";
 import dayjs, { Dayjs } from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { FireflyUploader } from "./FireflyUploader";
 
 dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export type GetRowsMode = "upload" | "dry_run";
 export interface TransactionRow {
@@ -194,12 +198,13 @@ export class ElementFinder {
 
   setElementStatus(element: HTMLElement, success: boolean, message?: string) {
     if (success) {
-      element.style.backgroundColor = "green";
+      element.style.borderStyle = "double";
+      element.style.borderColor = "#b1f3b1";
     } else {
       const mess = document.createElement("div");
       mess.textContent = message;
       element.append(mess);
-      element.style.backgroundColor = "red";
+      element.style.backgroundColor = "#FFCCCC";
     }
   }
 
@@ -284,8 +289,12 @@ export class ElementFinder {
         default:
       }
     });
-
+    console.log(
+      `dayjs.tz(${dateToProcess}, ${dateFormat}, "Pacific/Auckland");`
+    );
     const date = dayjs(dateToProcess, { format: dateFormat });
+
+    const dateNZ = date.tz("Pacific/Auckland", true);
     if (!date.isValid()) {
       const message = `Date could not be processed\n (Before:${dateText?.textContent} --> \nAfter: ${dateToProcess} --> \n  [${dateFormat}] \nAdjust the date format (selectorSet.dayjsDateParseFormat) and (optionally) replace characters before parse \nCurrent:${dateSelector.transactionDateSelector}`;
       this.setElementStatus(dateText, false, message);
@@ -366,7 +375,7 @@ export class ElementFinder {
         throw new Error("Transaction missing titleEl element");
       } else {
         this.setElementStatus(titleEl, true);
-        titleEl.style.backgroundColor = "green";
+        //titleEl.style.backgroundColor = "#b1f3b1";
       }
 
       const title = titleEl.textContent.trim();
@@ -393,7 +402,6 @@ export class ElementFinder {
         );
         if (!drAmountEl && !creditAmountEl) {
           throw new Error("Transaction row missing amount element");
-        } else {
         }
 
         finalCreditAmount = creditAmountEl?.textContent
@@ -404,8 +412,12 @@ export class ElementFinder {
           ?.trim()
           .replace("$", "")
           .replace(",", "");
+        this.setElementStatus(drAmountEl, true);
+        this.setElementStatus(creditAmountEl, true);
       } else if (this.selectorSet?.crAmount) {
-        const creditAmountEl = row.querySelector(this.selectorSet?.crAmount);
+        const creditAmountEl: HTMLElement = row.querySelector(
+          this.selectorSet?.crAmount
+        );
         const creditAmount = creditAmountEl?.textContent
           ?.trim()
           .replace("$", "")
@@ -418,6 +430,7 @@ export class ElementFinder {
           finalCreditAmount = "0";
           finalDepositAmount = creditAmount;
         }
+        this.setElementStatus(creditAmountEl, true);
       }
 
       const rowResult = {
@@ -426,7 +439,9 @@ export class ElementFinder {
           title?.length > 0 ? title : details
         }_${
           finalDepositAmount?.length > 0 ? `${finalDepositAmount}_` : "" ?? ""
-        }${finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ""}`,
+        }${
+          finalCreditAmount?.length > 0 ? `${finalCreditAmount}_` : ""
+        }_${dateRes.toISOString()}`,
         date: "millisecond" in dateRes ? dateRes : null,
         title,
         details,
@@ -439,22 +454,30 @@ export class ElementFinder {
       const summaryNode = document.createElement("div");
       const res = await this.fireflyUploader.uploadTransaction(rowResult, mode);
 
+      const resNode = document.createElement("div");
+
       if ("type" in res && res.type == "success") {
-        const uploadRes = document.createElement("div");
-        uploadRes.innerHTML = `<div>${
+        row.style.backgroundColor = "#bcf5bc";
+
+        resNode.innerHTML = `<div>${
           mode == "dry_run" ? "IS DRY RUN" : ""
         }<textarea>${JSON.stringify(res, null, 4)}</textarea></div>`;
-        summaryNode.appendChild(uploadRes);
+      } else if (res.type === "duplicate") {
+        row.style.backgroundColor = "yellow";
+        resNode.innerHTML = `<h1>Duplicate</h1><h2>${
+          res.message
+        }</h2><textarea>${JSON.stringify(res, null, 4)}</textarea>`;
       } else {
         row.style.backgroundColor = "red";
-        const errorNode = document.createElement("div");
-        errorNode.textContent = `${JSON.stringify(res)}`;
-        summaryNode.appendChild(errorNode);
+        resNode.innerHTML = `<h1>Firefly upload ${
+          res.type == "success" ? "success" : "FAILED"
+        }</h1> <h2>${res.message}</h2><textarea>${JSON.stringify(
+          res,
+          null,
+          4
+        )}</textarea>`;
       }
-      const allRes = document.createElement("div");
-
-      allRes.innerHTML = `${JSON.stringify(rowResult, null, 4)}`;
-      summaryNode.appendChild(allRes);
+      summaryNode.appendChild(resNode);
 
       row.appendChild(summaryNode);
 
@@ -462,6 +485,30 @@ export class ElementFinder {
     } catch (e) {
       console.error(e);
     }
+  }
+
+  async addRowButtons() {
+    const rows = this.getTransactionTableRows();
+    if (!rows || rows.length === 0) {
+      throw new Error("No transaction rows found");
+    }
+
+    rows.forEach((r) => {
+      const lastCell = r.lastElementChild.cloneNode(true) as HTMLElement;
+      r.appendChild(lastCell);
+
+      // Clear the content of the cloned cell and add a button
+      lastCell.innerHTML = "";
+      const btn = document.createElement("button");
+      btn.innerText = "Upload row";
+
+      // Attach a click event to the button
+      btn.addEventListener("click", () => {
+        this.getRow(r, "upload");
+      });
+
+      lastCell.appendChild(btn);
+    });
   }
 
   async getRows(mode: GetRowsMode): Promise<TransactionRow[]> {

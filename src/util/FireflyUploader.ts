@@ -5,12 +5,12 @@ import {
   Configuration,
   TransactionsApi,
   TransactionStore,
-  TransactionTypeProperty,
 } from "firefly-iii-typescript-sdk-fetch";
 
 interface UploadResult {
-  type: "success";
+  type: "success" | "failure" | "duplicate";
   row: HTMLElement;
+  message?: string;
   sent: TransactionStore;
   got: any;
 }
@@ -41,7 +41,7 @@ export class FireflyUploader {
   async uploadTransaction(
     row: TransactionRow,
     mode: GetRowsMode
-  ): Promise<UploadResult | Error> {
+  ): Promise<UploadResult> {
     console.log("uploadTransaction start");
     let transactionData: TransactionStore;
     let apiRes;
@@ -55,18 +55,15 @@ export class FireflyUploader {
         return {
           type: "success",
           row: row.htmlElement,
-          message: "IS DRY RUN",
           sent: transactionData,
-          got: "ITS A DRY RUN - NO API call",
+          message: "ITS A DRY RUN - NO API call",
+          got: null,
         };
       }
 
       apiRes = await this.transactionsApi.storeTransaction({
         transactionStore: transactionData,
       });
-      if (!apiRes) {
-        return new Error("No res");
-      }
 
       console.log(`Upload results: ${JSON.stringify(apiRes, null, 4)}`);
 
@@ -78,7 +75,32 @@ export class FireflyUploader {
         got: apiRes,
       };
     } catch (error) {
-      const errorDiv = document.createElement("div");
+      const detailedError = await error.json();
+      //errorMessage += `: ${JSON.stringify(detailedError, null, 4)}`;
+
+      if (detailedError?.message.includes("Duplicate of transaction")) {
+        return {
+          type: "duplicate",
+          row: row.htmlElement,
+          sent: transactionData,
+          message: detailedError?.message,
+          got: {
+            apiRes,
+            error: detailedError,
+          },
+        };
+      }
+      return {
+        type: "failure",
+        row: row.htmlElement,
+        sent: transactionData,
+        message: detailedError?.message,
+        got: {
+          apiRes,
+          error: detailedError,
+        },
+      };
+      /* const errorDiv = document.createElement("div");
       errorDiv.innerHTML = `uploadTransaction error ${error.status} ${
         error.statusText
       } <h1>Firefly upload failed</h1> <h3>Sent</h3><textarea>${JSON.stringify(
@@ -96,7 +118,7 @@ export class FireflyUploader {
             : "NO transactionData"
         }`
       );
-      return new Error("Failed to Upload"); //error;
+      return new Error("Failed to Upload"); //error;*/
     }
   }
 }

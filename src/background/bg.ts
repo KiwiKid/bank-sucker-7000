@@ -1,43 +1,40 @@
-import Browser from 'webextension-polyfill'
-import { getTransactions, setTransaction } from 'src/content-scripts/api'
+import Browser from "webextension-polyfill";
 
-const manifest_version = Browser.runtime.getManifest().manifest_version
+const manifest_version = Browser.runtime.getManifest().manifest_version;
 
-
-Browser.runtime.onInstalled.addListener(async () => openChatGPTWebpage())
+Browser.runtime.onInstalled.addListener(async () => openChatGPTWebpage());
 
 function openChatGPTWebpage() {
-    Browser.tabs.create({
-        url: "https://digital.anz.co.nz/preauth/web/service/login",
-    })
+  Browser.tabs.create({
+    url: "https://digital.anz.co.nz/preauth/web/service/login",
+  });
 }
 
 if (manifest_version == 2) {
-    Browser.browserAction.onClicked.addListener(openChatGPTWebpage)
-    update_origin_for_ddg_in_firefox()
+  Browser.browserAction.onClicked.addListener(openChatGPTWebpage);
+  update_origin_for_ddg_in_firefox();
 } else {
-    Browser.action.onClicked.addListener(openChatGPTWebpage)
+  Browser.action.onClicked.addListener(openChatGPTWebpage);
 }
 
 Browser.commands.onCommand.addListener(async (command) => {
-    if (command === "toggle-web-access") {
-        Browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-            if (tabs[0].url.startsWith("https://OFFsecure.anz.co.nz/")) {
-                Browser.tabs.sendMessage(tabs[0].id, "toggle-web-access")
-            }
-        })
-    }
-})
+  if (command === "toggle-web-access") {
+    Browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0].url.startsWith("https://OFFsecure.anz.co.nz/")) {
+        Browser.tabs.sendMessage(tabs[0].id, "toggle-web-access");
+      }
+    });
+  }
+});
 
 Browser.runtime.onMessage.addListener((request) => {
-    if (request === "show_options") {
-        Browser.runtime.openOptionsPage()
-    }
-})
-
+  if (request === "show_options") {
+    Browser.runtime.openOptionsPage();
+  }
+});
 
 Browser.runtime.onMessage.addListener(async (message) => {
-    /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
+  /*  console.log('Browser.runtime.onMessage.addListener((message) => ')
       if (message.type === "get_search_results") {
           return getHtml(message.search)
       }
@@ -46,17 +43,18 @@ Browser.runtime.onMessage.addListener(async (message) => {
           return getWebpageTitleAndText(message.url, message.html)
       }*/
 
-    if (message.type === 'get_transactions') {
-        console.log('Browser.runtime.onMessage.addListener((message) => get_transactions ')
-        console.log('OPTIONS PASSED')
-        console.log(message.options)
-        return getTransactions(message.options)
-    }
+  if (message.type === "get_transactions") {
+    console.log(
+      "Browser.runtime.onMessage.addListener((message) => get_transactions "
+    );
+    console.log("OPTIONS PASSED");
+    console.log(message.options);
+    //return getTransactions(message.options);
+  }
 
-    if (message.type === 'set_transactions') {
-        return setTransaction(message.options)
-
-        /*.then((trans) => {
+  if (message.type === "set_transactions") {
+    // return setTransaction(message.options);
+    /*.then((trans) => {
             console.error('setTransaction:then-block')
 
             return Browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
@@ -67,10 +65,8 @@ Browser.runtime.onMessage.addListener(async (message) => {
                 }
             })
         })*/
-    }
-
-
-})
+  }
+});
 /*
 // Firefox does not support declarativeNetRequest.updateDynamicRules yet
 Browser.declarativeNetRequest.updateDynamicRules({
@@ -99,19 +95,20 @@ Browser.declarativeNetRequest.updateDynamicRules({
 })
 */
 function update_origin_for_ddg_in_firefox() {
-    Browser.webRequest.onBeforeSendHeaders.addListener(
-        (details) => {
-            for (let i = 0; i < details.requestHeaders.length; ++i) {
-                if (details.requestHeaders[i].name === 'Origin')
-                    details.requestHeaders[i].value = "https://lite.duckduckgo.com"
-            }
+  Browser.webRequest.onBeforeSendHeaders.addListener(
+    (details) => {
+      for (let i = 0; i < details.requestHeaders.length; ++i) {
+        if (details.requestHeaders[i].name === "Origin")
+          details.requestHeaders[i].value = "https://lite.duckduckgo.com";
+      }
 
-            return {
-                requestHeaders: details.requestHeaders
-            }
-        }, {
-        urls: ["https://lite.duckduckgo.com/*"],
+      return {
+        requestHeaders: details.requestHeaders,
+      };
     },
-        ["blocking", "requestHeaders"]
-    )
+    {
+      urls: ["https://lite.duckduckgo.com/*"],
+    },
+    ["blocking", "requestHeaders"]
+  );
 }

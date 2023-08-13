@@ -8,14 +8,15 @@ const getBaseFields = (t: TransactionRow): TransactionSplitStore => {
   const amount = isWithdrawal ? t.depositAmount : t.creditAmount;
   // Ensure transactions created are unique:
 
+  const title = t.title?.length > 0 ? t.title : t.details;
   return {
     // ANZ data-transactionId is not a great unique Id
     amount: amount,
     type: getTransactionTypeProperty(t),
-    description: t.title?.length > 0 ? t.title : t.details,
-    notes: `${t.transactionId}`,
-    date: t.date.locale("en_NZ").toDate(),
-    externalId: `${t.date.locale("en_NZ").toISOString()}`,
+    description: title,
+    notes: `${t.transactionId}${t.details ? ` - ${t.details}` : ""}`,
+    date: new Date(t.date.locale("en_NZ").format()),
+    externalId: `${title}_${t.date.format()}`,
   };
 };
 

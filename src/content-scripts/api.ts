@@ -106,11 +106,11 @@ export function getTransactionTypeProperty(
     Reconciliation = "reconciliation",
     OpeningBalance = "opening balance"*/
 }
-
+/*
 export interface SetTransactionsOptions {
   transaction: TransactionSplitStore;
   dry_run: boolean;
-  /*{
+ {
          * YYYY-MM-DD
         date:string // '2023-04-07',
         description:string // 'Example transaction',
@@ -120,8 +120,8 @@ export interface SetTransactionsOptions {
         destination_name: 'Example destination',
         asset_id: 1
       }[]*/
-}
-
+/*
+/*
 export async function getTransactions({
   listOptions,
 }: GetTransactionsOptions): Promise<TransactionRead[]> {
@@ -171,9 +171,9 @@ export async function getTransactions({
     }
     const transactions:ApiResponse = await response.json()
 
-    return transactions.data;*/
-}
-
+    return transactions.data;
+}*/
+/*
 export async function getAccounts() {
   const config = await getFireflyConfig();
   return new AccountsApi(
@@ -272,10 +272,10 @@ export async function setTransaction(
             /*const response = await Browser.runtime.sendMessage({
                                     type: "get_webpage_text",
                                     options: {url: 'url'}
-                                })*/
+                                })
             /*browser.tabs.query({active: true, currentWindow: true}).then((tabs:unknown) => {
                                     browser.tabs.sendMessage(tabs[0].id, "set_transaction_imported", {}).then((res) => console.log(res))
-                                })*/
+                                })
 
             //               console.info('Duplicate found')
             //               console.info(options.transaction)
@@ -334,13 +334,12 @@ export async function setTransaction(
         return sa
       })*/
 
-  /*
+/*
         .listAccount({})
         .then((r: any) => {
             console.log(JSON.stringify(r))
             return r;
-        });*/
-}
+        });
 
 export async function apiExtractText(url: string): Promise<SearchResult[]> {
   const response = await Browser.runtime.sendMessage({
@@ -350,3 +349,4 @@ export async function apiExtractText(url: string): Promise<SearchResult[]> {
 
   return [response];
 }
+*/

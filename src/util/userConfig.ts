@@ -123,9 +123,9 @@ export async function getUserConfig(): Promise<UserConfig> {
   return defaults(config, defaultConfig);
 }
 /*
-export async function getAccountConfig(
+export async function getSpecificAccountConfig(
   accountName: string
-): Promise<AccountConfig> {
+): Promise<AccountExportConfig> {
   const fireflyConfig = await getFireflyConfig();
 
   if (!fireflyConfig.accountExportConfig) {
@@ -150,7 +150,9 @@ export async function getAccountConfig(
     })`);
 }*/
 
-export async function getFireflyConfig(): Promise<FireflyConfig> {
+export async function getFireflyConfig(
+  accountName: string
+): Promise<FireflyConfig> {
   const config = await getUserConfig();
   if (
     !config ||
@@ -159,6 +161,24 @@ export async function getFireflyConfig(): Promise<FireflyConfig> {
   ) {
     console.log("No firefly API Token in browser storage/config");
   }
+
+  const currentAccount = config.firefly?.accountExportConfig?.filter(
+    (ac) => ac.accountNameOnBankSite === accountName
+  );
+  if (currentAccount?.length > 0) {
+    return {
+      ...config.firefly,
+      accountExportConfig: [currentAccount[0]],
+    };
+  }
+  console.error(`could not find matching account for ${accountName}
+    (checked ${
+      config.firefly?.accountExportConfig?.length > 0
+        ? config.firefly?.accountExportConfig
+            ?.map((aec) => `${aec.accountNameOnBankSite}`)
+            .join()
+        : "none in config"
+    })`);
 
   return config.firefly;
 }
