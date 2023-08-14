@@ -61,7 +61,7 @@ async function updateUI(
     }
 
     finder = new ElementFinder(specificConfig);
-    if (!finder.isWebsiteAccountValid) {
+    if (!finder.isWebsiteAccountValid || finder.errors.length > 0) {
       console.error("Early exit, no account name on page");
       return false;
     }
@@ -112,7 +112,10 @@ async function updateUI(
     } else {
       actionsPanel.appendChild(shadowRootDiv);
     }
-    finder.addRowButtons();
+
+    if (finder.getTransactionTableRows()) {
+      finder.addRowButtons();
+    }
 
     // shadowRootDiv.classList.add('wcg-toolbar')
 

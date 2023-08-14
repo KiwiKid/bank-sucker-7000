@@ -115,6 +115,7 @@ export class ElementFinder {
   accountExportConfig: AccountExportConfig | null;
   isWebsiteAccountValid: boolean;
   fireflyUploader: FireflyUploader;
+  errors: string[];
 
   website: string;
 
@@ -170,13 +171,17 @@ export class ElementFinder {
             errorMessages.push(`NO hasNoWebsite!!! - check "accountExportConfig.website": ${this.accountExportConfig.selectors?.table}]`);
         }
 
-        if(!this.getTransactionTableRows()){
-            errorMessages.push(`NO rows - check [accountExportConfig.selectors.tableRows: ${this.accountExportConfig.selectors?.table}]`);
-        }
+
     
         if(errorMessages.length == 0){
             console.log('\n\nALL GOOD TO GOOO\n\n')
         }*/
+
+    if (!this.getTransactionTableRows()) {
+      errorMessages.push(
+        `NO rows - check [accountExportConfig.selectors.tableRows: ${this.accountExportConfig.selectors?.table}]`
+      );
+    }
 
     return errorMessages;
   }
@@ -198,9 +203,9 @@ export class ElementFinder {
   }
   //*[@id="ember1146"]
   getTransactionTableRows(): NodeListOf<HTMLElement> {
-    return document.querySelectorAll(
-      this.accountExportConfig.selectors?.tableRows
-    );
+    return this.accountExportConfig.selectors?.tableRows
+      ? document.querySelectorAll(this.accountExportConfig.selectors?.tableRows)
+      : null;
   }
 
   getTransactionDate(): HTMLElement {
