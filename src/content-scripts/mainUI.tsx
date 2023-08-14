@@ -6,6 +6,12 @@ import { dateFormatter } from "src/util/dateFormatter";
 
 import SettingsConfig from "src/components/SettingsConfig";
 import Rows from "src/util/Rows";
+import {
+  AccountExportConfig,
+  SupportedWebsites,
+  addNewAccountExportConfig,
+  getUserConfig,
+} from "src/util/userConfig";
 
 let table: HTMLElement;
 let actionsPanel: HTMLElement;
@@ -24,7 +30,10 @@ async function getRows(mode: GetRowsMode) {
   }
 }
 
-async function updateUI() {
+async function updateUI(
+  website: SupportedWebsites,
+  accountName: string
+): Promise<boolean> {
   try {
     console.log("updateUI entry");
 
@@ -33,9 +42,31 @@ async function updateUI() {
     console.log("updateUI 2");
 
     // TODO: fix this for other websites
-    finder = new ElementFinder();
-    await finder.setSelectorSet();
 
+    const websiteName = getWebsite();
+    const accountNameOnPage = getAccountNameFromPage(websiteName);
+
+    if (!accountNameOnPage) {
+      console.info("No account name on page");
+      return false;
+    }
+    const specificConfig = await getSpecificConfig({
+      website: websiteName,
+      accountName: accountNameOnPage.name,
+    });
+
+    if ("message" in specificConfig) {
+      console.error(specificConfig.message);
+      return false;
+    }
+
+    finder = new ElementFinder(specificConfig);
+    if (!finder.isWebsiteAccountValid) {
+      console.error("Early exit, no account name on page");
+      return false;
+    }
+    await finder.setSelectorSet();
+    //change
     actionsPanel = finder.getAddImportButtonLocation();
     if (!actionsPanel) {
       return;
@@ -58,9 +89,7 @@ async function updateUI() {
     actionsPanel = finder.getAddImportButtonLocation();
     btnSubmit = finder.getFilterTransactionsButton();
 
-    console.log("updateUI 3");
-
-    // table.addEventListener("DOMSubtreeModified", onTableChange);
+    if (table) table.addEventListener("DOMSubtreeModified", onTableChange);
     //btnSubmit.addEventListener("click", onSubmit)
 
     // const textareaParentParent = table.parentElement.parentElement
@@ -91,6 +120,9 @@ async function updateUI() {
 
     render(
       <Fragment>
+        <div>
+          {finder.website}/{finder.accountExportConfig.accountNameOnBankSite}
+        </div>
         <button onClick={async () => await getRows("dry_run")} class="import">
           Scan Rows
         </button>
@@ -107,8 +139,9 @@ async function updateUI() {
     );
     //document.body.appendChild(p);
     console.log("render");
+    return true;
   } catch (e: any) {
-    const errors = finder._printAllChecks();
+    //const errors = finder._printAllChecks();
     console.error("Failed to update UI, rendering error", {
       e,
     });
@@ -116,14 +149,11 @@ async function updateUI() {
       <Fragment>
         Error Occured
         <SettingsConfig />
-        <pre>
-          Error:{" "}
-          {JSON.stringify({ message: e.message, stack: e.stack }, undefined, 4)}
-        </pre>
-        <pre>{JSON.stringify(errors, null, 4)}</pre>
+        <pre>Error: {JSON.stringify(e, undefined, 4)}</pre>
       </Fragment>,
-      finder.getAddImportButtonLocation()
+      document.body
     );
+    return false;
   }
 }
 async function onSubmit(event: MouseEvent) {
@@ -199,45 +229,178 @@ async function onSubmit(event: MouseEvent) {
         console.error(`got existing tra ${response.length}`)*/
   }
 }
-/*
+
 const onTableChange = function () {
   console.log("table changed");
-};*/
+};
 
+type GetSpecificParams = {
+  accountName: string;
+  website: SupportedWebsites;
+};
+export const getSpecificConfig = async ({
+  accountName,
+  website,
+}: GetSpecificParams): Promise<AccountExportConfig | Error> => {
+  const config = await getUserConfig();
+
+  if (!config) {
+    console.error("No config configured");
+    return;
+  }
+
+  if (!website) {
+    console.error("No website configured");
+    return;
+  }
+
+  if (!accountName) {
+    console.error("No accountName configured");
+    return;
+  }
+
+  return config.firefly.accountExportConfig.find((aec): boolean => {
+    if (aec.website == website && aec.accountNameOnBankSite == accountName) {
+      console.log(
+        `FOUND CONFIG match ${aec.website}${aec.accountNameOnBankSite}`
+      );
+      return true;
+    } else if (website == undefined || accountName == undefined) {
+      console.error(`hasNoWebsite ${website} or account name ${accountName}`);
+      return false;
+    }
+    console.error(
+      `has website, but no account name matching: ${accountName} [Options: ${config.firefly.accountExportConfig
+        .map((aec) => aec.accountNameOnBankSite)
+        .join(",")}]`
+    );
+    return false;
+  });
+};
+
+export const getWebsite = (): SupportedWebsites | null => {
+  const host = window.location.host;
+  if (host.includes("anz.co.nz")) {
+    return "anz";
+  } else if (host.includes("simplicity.")) {
+    return "simplicity";
+  }
+  return null;
+};
+
+export const getAccountNameFromPage = (
+  website: SupportedWebsites
+): {
+  elm: HTMLElement;
+  name: string;
+} => {
+  switch (website) {
+    case "anz": {
+      const accountNameNode: HTMLElement = document.querySelector(
+        "span[class='account-name']"
+      );
+      return {
+        elm: accountNameNode,
+        name: accountNameNode.textContent,
+      };
+    }
+    case "simplicity": {
+      throw new Error("Not implimented yet");
+    }
+  }
+};
+/*
 setTimeout(() => {
   console.log("setTimeout updateUI");
-  updateUI();
-}, 1500);
+  const websiteName = getWebsite();
+  const accountNameOnPage = getAccountNameFromPage(websiteName);
+  updateUI(websiteName, accountNameOnPage);
+}, 1500);*/
 
-window.onload = function () {
+const bootstrapUI = async () => {
   console.log("MAIN ANZ UI 1 RAN ONLOAD");
-  updateUI();
-
   try {
     console.log("MAIN ANZ UI RAN ONLOAD - 2 MutationObserver");
 
-    const picker = new ElementFinder();
+    const websiteName = getWebsite();
+    const accountNameOnPage = getAccountNameFromPage(websiteName);
+
+    if (!accountNameOnPage) {
+      console.info("No account name on page");
+      return;
+    }
+    const specificConfig = await getSpecificConfig({
+      website: websiteName,
+      accountName: accountNameOnPage.name,
+    });
+
+    if (!specificConfig) {
+      console.error(
+        `Failed to get any config object for ${websiteName}/${accountNameOnPage.name}`
+      );
+      return;
+    }
+
+    if ("message" in specificConfig) {
+      console.error(specificConfig?.message || "Failed to get config");
+      return;
+    }
+
+    const picker = new ElementFinder(specificConfig);
     picker.setSelectorSet().then(() => {
       picker._printAllChecks();
       const rootEl = picker.getTransactionTable();
 
-      new MutationObserver(() => {
+      /*const observer = new MutationObserver(() => {
         console.log("MAIN ANZ UI RAN ONLOAD - 3 updateUI()");
-        updateUI();
-      }).observe(rootEl, { childList: true });
+        const websiteName = getWebsite();
+        const accountNameOnPage = getAccountNameFromPage(websiteName);
+        if (accountNameOnPage) {
+          updateUI(websiteName, accountNameOnPage.name);
+        } else {
+          const res = prompt(
+            `Could not find matching account name on page (${accountNameOnPage}). Enter it below to start the account setup:`
+          );
+
+          //const res = prompt(`What is the name of this account in firefly?`);
+          if (res) {
+            addNewAccountExportConfig(websiteName, res);
+          }
+        }
+      }).observe(rootEl, { childList: true });*/
     });
   } catch (e) {
     console.info("error --> Could not update UI:\n", e.stack);
   }
 };
-
-document.addEventListener("onload", () => {
-  console.log("onload");
-});
+/*
+window.addEventListener("onload", () => {
+  bootstrapUI();
+});*/
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOMContentLoaded");
 });
-console.log(window.onload);
+//console.log(window.onload);
 
 console.log("window.onload AFT");
+// window.onload = bootstrapUI;
+
+const observer = new MutationObserver(async () => {
+  const websiteName = getWebsite(); // Assuming you have a method called `getWebsite` which returns the website name
+  const accountNameOnPage = getAccountNameFromPage(websiteName);
+
+  if (accountNameOnPage && accountNameOnPage.elm) {
+    console.log("accountNameOnPage && accountNameOnPage.elm TRUE");
+    // Do whatever you want here with the account name
+    const res = await updateUI(websiteName, accountNameOnPage.name);
+
+    // If you only want this to run once, disconnect the observer after it's found
+    if (res) observer.disconnect();
+  } else {
+    console.log("accountNameOnPage && accountNameOnPage.elm FALSE");
+  }
+});
+
+// Start observing the entire document for changes in child nodes
+observer.observe(document, { childList: true, subtree: true });

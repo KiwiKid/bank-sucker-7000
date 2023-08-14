@@ -1,7 +1,16 @@
 import { h } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  getAccountNameFromPage,
+  getSpecificConfig,
+  getWebsite,
+} from "src/content-scripts/mainUI";
 import { ElementFinder } from "src/util/ElementFinder";
-import { getUserConfig, updateUserConfig, isValidUserConfig } from "src/util/userConfig";
+import {
+  getUserConfig,
+  updateUserConfig,
+  isValidUserConfig,
+} from "src/util/userConfig";
 
 function SettingsConfig() {
   const [showConfig, setShowConfig] = useState(false);
@@ -17,44 +26,85 @@ function SettingsConfig() {
 
     newConfig.firefly.token = tokenValue;
 
-    await updateUserConfig(newConfig).then(() => {
-      setInputStatus("Uploaded "+new Date().toISOString());
-    }).catch((e) => {
-      setInputStatus(`failed ${JSON.stringify(e)}`);
-    })
+    await updateUserConfig(newConfig)
+      .then(() => {
+        setInputStatus("Uploaded " + new Date().toISOString());
+      })
+      .catch((e) => {
+        setInputStatus(`failed ${JSON.stringify(e)}`);
+      });
 
-    const validConfigErrors = isValidUserConfig(newConfig)
-    if(validConfigErrors.length > 0){
-      const finder = new ElementFinder();
-      await finder.setSelectorSet();
+    const validConfigErrors = isValidUserConfig(newConfig);
+    if (validConfigErrors.length > 0) {
+      /* const websiteName = getWebsite();
+      const accountNameOnPage = getAccountNameFromPage(websiteName);
+
+      if (!accountNameOnPage) {
+        console.info("No account name on page");
+        return;
+      }
+      const specificConfig = await getSpecificConfig(
+        websiteName,
+        accountNameOnPage.name
+      );
+
+      if ("message" in specificConfig) {
+        console.error(specificConfig.message);
+        return;
+      }
+      alert(JSON.stringify(validConfigErrors));
+      /*await finder.setSelectorSet();
       const errors = finder._printAllChecks();
-      if(errors && errors.length == 0){
-      
+      if (errors && errors.length == 0) {
+      } else {
+        setInputStatus( 
+          `${inputStatus} Errors: ${JSON.stringify(errors, null, 4)}`
+        );
+      }*/
     } else {
-      setInputStatus(`${inputStatus} Errors: ${JSON.stringify(errors, null ,4)}`);
+      /* setInputStatus(
+        `${inputStatus} Errors via isValidUserConfig  ${JSON.stringify(
+          validConfigErrors,
+          null,
+          4
+        )}`
+      );
+    }*/
     }
-    }else{
-      setInputStatus(`${inputStatus} Errors via isValidUserConfig  ${JSON.stringify(validConfigErrors, null ,4)}`);
-    }
-}
+  };
 
-  const handleChange = (event) => {
+  const handleChange = async (event) => {
     try {
       const res = JSON.parse(event.target.value);
-     if(isValidUserConfig(res)){
-        const finder = new ElementFinder();
-        const errors = finder._printAllChecks();
-        if(errors.length == 0){
-          setInputStatus("valid");
+      if (isValidUserConfig(res)) {
+        const websiteName = getWebsite();
+        const accountNameOnPage = getAccountNameFromPage(websiteName);
 
-        }else{
-          setInputStatus(JSON.stringify(errors, undefined, 4));
-
+        if (!accountNameOnPage) {
+          console.info("No account name on page");
+          return;
         }
-            // setInputValue(JSON.stringify(res, undefined, 4));
-     }else{
-      throw 'Not valid'
-     }
+        const specificConfig = await getSpecificConfig({
+          website: websiteName,
+          accountName: accountNameOnPage.name,
+        });
+
+        if ("message" in specificConfig) {
+          console.error(specificConfig.message);
+          return;
+        }
+
+        const finder = new ElementFinder(specificConfig);
+        const errors = finder._printAllChecks();
+        if (errors.length == 0) {
+          setInputStatus("valid");
+        } else {
+          setInputStatus(JSON.stringify(errors, undefined, 4));
+        }
+        // setInputValue(JSON.stringify(res, undefined, 4));
+      } else {
+        throw "Not valid";
+      }
     } catch (err) {
       setInputStatus(err.message);
     }
@@ -78,7 +128,6 @@ function SettingsConfig() {
 
     fetchConfig();
   }, []);
-  
 
   const toggleShowConfig = () => {
     setShowConfig(!showConfig);
@@ -95,6 +144,7 @@ function SettingsConfig() {
       {showConfig && (
         <form onSubmit={handleSubmit}>
           <button type="submit">Save Config</button>
+          <div>Tips: Ensure you passs through the</div>
           <pre>{inputStatus}</pre>
           <label for="config">Config</label>
           <textarea

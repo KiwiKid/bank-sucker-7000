@@ -1,7 +1,7 @@
 import { defaults } from "lodash-es";
 import Browser from "webextension-polyfill";
 import { getSystemLanguage } from "./localization";
-import { SelectorSet } from "./ElementFinder";
+import { SelectorSet, getEmptySelectorSet } from "./ElementFinder";
 
 const defaultConfig: UserConfig = {
   numWebResults: 3,
@@ -67,8 +67,10 @@ export type FireflyConfig = {
   accountExportConfig: AccountExportConfig[];
 };
 
+export type SupportedWebsites = "anz" | "simplicity";
+
 export type AccountExportConfig = {
-  website: "anz" | "simplicity";
+  website: SupportedWebsites;
   fireflyAccountName: string;
   accountNameOnBankSite: string;
   selectors: SelectorSet;
@@ -119,7 +121,7 @@ export function isValidUserConfig(obj: any): string[] {
 }
 
 export async function getUserConfig(): Promise<UserConfig> {
-  const config = await Browser.storage.sync.get(defaultConfig);
+  const config = await Browser.storage.sync.get("BANK_IMPORTER_7000");
   return defaults(config, defaultConfig);
 }
 /*
@@ -186,5 +188,21 @@ export async function getFireflyConfig(
 export async function updateUserConfig(
   config: Partial<UserConfig>
 ): Promise<void> {
-  await Browser.storage.sync.set(config);
+  await Browser.storage.sync.set({ BANK_IMPORTER_7000: config });
+}
+
+export async function addNewAccountExportConfig(
+  website: SupportedWebsites,
+  accountNameOnPage: string
+): Promise<void> {
+  const existing: UserConfig = await Browser.storage.sync
+    .get("BANK_IMPORTER_7000")
+    .then((res) => res["BANK_IMPORTER_7000"]);
+  existing.firefly.accountExportConfig.push({
+    website: website,
+    accountNameOnBankSite: accountNameOnPage,
+    fireflyAccountName: "REPLACE_WITH_ACCOUNT_NAME_IN_FIREFLY",
+    selectors: getEmptySelectorSet(),
+  });
+  await Browser.storage.sync.set(existing);
 }

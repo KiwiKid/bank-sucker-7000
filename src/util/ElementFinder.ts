@@ -1,6 +1,7 @@
 import {
   AccountExportConfig,
   FireflyConfig,
+  SupportedWebsites,
   getUserConfig,
 } from "./userConfig";
 import dayjs, { Dayjs } from "dayjs";
@@ -36,10 +37,10 @@ type SiblingRowField = "transactionDate";
 
 type RemoveType = "[at]" | "[Processed on]";
 
-export interface DateSelectorSet {
+export interface Dateselectors {
   transactionDateSelector: string;
   dayjsDateParseFormat?: string;
-  dayjsDateParseRemoveRegex?: RemoveType[];
+  dayjsDateParseRemoveBeforeParseRegex?: RemoveType[];
 }
 
 export interface SelectorSet {
@@ -54,8 +55,8 @@ export interface SelectorSet {
   tableRows: string;
   details: string;
   title: string;
-  date: DateSelectorSet;
-  fallbackDate: DateSelectorSet;
+  date: Dateselectors;
+  fallbackDate: Dateselectors;
   pageActions: {
     datePickerStart: string;
     datePickerEnd: string;
@@ -78,77 +79,99 @@ export const getAccountStatusElement = (): HTMLElement => {
   return document.querySelector("div[id='firefly-status']");
 };
 
+export const getEmptySelectorSet = (): SelectorSet => {
+  return {
+    accountName: "",
+    crAmount: "",
+    details: "",
+    date: {
+      transactionDateSelector: "",
+      dayjsDateParseFormat: "",
+      dayjsDateParseRemoveBeforeParseRegex: ["[at]"],
+    },
+    fallbackDate: {
+      transactionDateSelector: "",
+      dayjsDateParseFormat: "",
+      dayjsDateParseRemoveBeforeParseRegex: ["[at]"],
+    },
+    importButtonLocation: "",
+    isOnSiblingRowField: ["transactionDate"],
+    pageActions: {
+      datePickerEnd: "",
+      datePickerStart: "",
+      filterTransactionButton: "",
+    },
+    rootElm: "",
+    table: "",
+    tableRows: "",
+    title: "",
+    drAmount: "",
+  };
+};
+/*
+ */
+
 export class ElementFinder {
-  selectorSet: SelectorSet | null;
-  hasNoWebsite: boolean;
+  accountExportConfig: AccountExportConfig | null;
+  isWebsiteAccountValid: boolean;
   fireflyUploader: FireflyUploader;
 
-  async setSelectorSet(overrideSet?: SelectorSet): Promise<void> {
-    console.log("setSelectorSet");
-    const config = await getUserConfig();
+  website: string;
 
-    // TODO: make this dynamic
-    const thisConfig: AccountExportConfig =
-      config.firefly.accountExportConfig.find((aec): boolean => {
-        if (aec.website == undefined) {
-          this.hasNoWebsite = true;
-          return true;
-        } else if (aec.website == "anz") {
-          return true;
-        }
-
-        return false;
-      });
-
-    this.fireflyUploader = new FireflyUploader(config.firefly, thisConfig);
-
-    if (!thisConfig) {
-      console.log("NO CONFIG");
-
-      console.error(thisConfig);
+  constructor(accountExportConfig: AccountExportConfig) {
+    this.accountExportConfig = accountExportConfig;
+    if (accountExportConfig) {
+      this.isWebsiteAccountValid = true;
     } else {
-      console.log(`setSelectorSet SET ${overrideSet ? "WITH OVERRIDE" : ""}`);
-
-      this.selectorSet = overrideSet ? overrideSet : thisConfig.selectors;
-      console.log(this.selectorSet);
+      this.isWebsiteAccountValid = false;
     }
   }
 
+  async setSelectorSet(): Promise<void> {
+    console.log("setSelectorSet");
+    const config = await getUserConfig();
+
+    this.fireflyUploader = new FireflyUploader(
+      config.firefly,
+      this.accountExportConfig
+    );
+  }
+
   _printAllChecks(): string[] {
-    //console.info(`SELECTOR SET: ${JSON.stringify(selectorSet, null, 4)}`)
+    //console.info(`SELECTOR SET: ${JSON.stringify(selectors, null, 4)}`)
     const errorMessages: string[] = [];
 
     const element = this.getAddImportButtonLocation();
     /* if (!element) {
-            errorMessages.push(`NO getAddImportButtonLocation found - check [accountExportConfig.selectors.importButtonLocation: ${this.selectorSet?.importButtonLocation}]`);
+            errorMessages.push(`NO getAddImportButtonLocation found - check [accountExportConfig.selectors.importButtonLocation: ${this.accountExportConfig.selectors?.importButtonLocation}]`);
         }
     
         if (!this.getAccountNameOnPage()) {
-            errorMessages.push(`NO getAccountNameOnPage - [accountExportConfig.selectors.accountName: ${this.selectorSet?.accountName}]`);
+            errorMessages.push(`NO getAccountNameOnPage - [accountExportConfig.selectors.accountName: ${this.accountExportConfig.selectors?.accountName}]`);
         }
     
        if (!this.getTransactionDate()) {
-            errorMessages.push(`NO getTransactionDate -[accountExportConfig.selectors.transactionDate: ${this.selectorSet?.transactionDate}]`);
+            errorMessages.push(`NO getTransactionDate -[accountExportConfig.selectors.transactionDate: ${this.accountExportConfig.selectors?.transactionDate}]`);
         }
 
         if (!this.getStartDatePicker()) {
-            errorMessages.push(`NO getStartDatePicker - [accountExportConfig.selectors.datePickerEnd: ${this.selectorSet?.date.datePickerEnd}]`);
+            errorMessages.push(`NO getStartDatePicker - [accountExportConfig.selectors.datePickerEnd: ${this.accountExportConfig.selectors?.date.datePickerEnd}]`);
         }
     
         if (!this.getEndDatePicker()) {
-            errorMessages.push(`NO getEndDatePicker -[accountExportConfig.selectors.date_end: ${this.selectorSet?.datePickerEnd}]`);
+            errorMessages.push(`NO getEndDatePicker -[accountExportConfig.selectors.date_end: ${this.accountExportConfig.selectors?.datePickerEnd}]`);
         }
     
         if (!this.getTransactionTable()) {
-            errorMessages.push(`NO getTransactionTable -[accountExportConfig.selectors.table: ${this.selectorSet?.table}]`);
+            errorMessages.push(`NO getTransactionTable -[accountExportConfig.selectors.table: ${this.accountExportConfig.selectors?.table}]`);
         }
 
         if (!this.hasNoWebsite) {
-            errorMessages.push(`NO hasNoWebsite!!! - check "accountExportConfig.website": ${this.selectorSet?.table}]`);
+            errorMessages.push(`NO hasNoWebsite!!! - check "accountExportConfig.website": ${this.accountExportConfig.selectors?.table}]`);
         }
 
         if(!this.getTransactionTableRows()){
-            errorMessages.push(`NO rows - check [accountExportConfig.selectors.tableRows: ${this.selectorSet?.table}]`);
+            errorMessages.push(`NO rows - check [accountExportConfig.selectors.tableRows: ${this.accountExportConfig.selectors?.table}]`);
         }
     
         if(errorMessages.length == 0){
@@ -160,40 +183,48 @@ export class ElementFinder {
 
   getFilterTransactionsButton(): HTMLButtonElement {
     return document.querySelector(
-      this.selectorSet?.pageActions?.filterTransactionButton
+      this.accountExportConfig.selectors?.pageActions?.filterTransactionButton
     );
   }
 
   getAddImportButtonLocation(): HTMLButtonElement {
-    return document.querySelector(this?.selectorSet?.importButtonLocation);
+    return document.querySelector(
+      this.accountExportConfig.selectors?.importButtonLocation
+    );
   }
 
   getTransactionTable(): HTMLElement {
-    return document.querySelector(this.selectorSet?.table);
+    return document.querySelector(this.accountExportConfig.selectors?.table);
   }
   //*[@id="ember1146"]
   getTransactionTableRows(): NodeListOf<HTMLElement> {
-    return document.querySelectorAll(this.selectorSet?.tableRows);
+    return document.querySelectorAll(
+      this.accountExportConfig.selectors?.tableRows
+    );
   }
 
   getTransactionDate(): HTMLElement {
     return document.querySelector(
-      this.selectorSet?.date.transactionDateSelector
+      this.accountExportConfig.selectors?.date.transactionDateSelector
     );
   }
 
   getStartDatePicker(): HTMLInputElement {
     return document.querySelector(
-      this.selectorSet?.pageActions?.datePickerStart
+      this.accountExportConfig.selectors?.pageActions?.datePickerStart
     );
   }
 
   getEndDatePicker(): HTMLInputElement {
-    return document.querySelector(this.selectorSet?.pageActions?.datePickerEnd);
+    return document.querySelector(
+      this.accountExportConfig.selectors?.pageActions?.datePickerEnd
+    );
   }
 
   getAccountNameOnPage(): HTMLElement {
-    return document.querySelector(this.selectorSet?.accountName);
+    return document.querySelector(
+      this.accountExportConfig.selectors?.accountName
+    );
   }
 
   setElementStatus(element: HTMLElement, success: boolean, message?: string) {
@@ -209,7 +240,9 @@ export class ElementFinder {
   }
 
   useSiblingRowIfConfigured(fieldName: SiblingRowField, row: HTMLElement) {
-    if (this.selectorSet.isOnSiblingRowField.includes(fieldName)) {
+    if (
+      this.accountExportConfig.selectors.isOnSiblingRowField.includes(fieldName)
+    ) {
       return row.nextElementSibling;
     }
 
@@ -218,22 +251,22 @@ export class ElementFinder {
 
   rowPreClickIsDone(row: HTMLElement): boolean {
     const conditionMet = row.querySelector(
-      this.selectorSet.preProcessClick.rowPreProcessClickDone
+      this.accountExportConfig.selectors.preProcessClick.rowPreProcessClickDone
     );
     return !!conditionMet;
   }
 
   rowPreClick(row: HTMLElement): Promise<boolean> {
     return new Promise<boolean>((reject, resolve) => {
-      if (!this.selectorSet?.preProcessClick) {
+      if (!this.accountExportConfig.selectors?.preProcessClick) {
         resolve(false);
       }
       console.log(
-        `Pre process clicking - start: ${this.selectorSet.preProcessClick.rowPreProcessClick} \n[Done: ${this.selectorSet.preProcessClick.rowPreProcessClickDone}]`
+        `Pre process clicking - start: ${this.accountExportConfig.selectors.preProcessClick.rowPreProcessClick} \n[Done: ${this.accountExportConfig.selectors.preProcessClick.rowPreProcessClickDone}]`
       );
 
       const clickElement: HTMLElement = row.querySelector(
-        this.selectorSet.preProcessClick.rowPreProcessClick
+        this.accountExportConfig.selectors.preProcessClick.rowPreProcessClick
       );
       if (clickElement) {
         clickElement.style.transition = "none";
@@ -253,7 +286,7 @@ export class ElementFinder {
         clickElement.click();
       } else {
         console.error(
-          `A rowPreProcessClick was configured, but the button for: \n\n row.querySelector(${this.selectorSet.preProcessClick.rowPreProcessClick}) was not found.`
+          `A rowPreProcessClick was configured, but the button for: \n\n row.querySelector(${this.accountExportConfig.selectors.preProcessClick.rowPreProcessClick}) was not found.`
         );
         resolve(false);
       }
@@ -262,7 +295,7 @@ export class ElementFinder {
 
   parseDateFromRow(
     row: HTMLElement,
-    dateSelector: DateSelectorSet
+    dateSelector: Dateselectors
   ): Error | Dayjs {
     const dateText: HTMLElement = this.useSiblingRowIfConfigured(
       "transactionDate",
@@ -278,7 +311,7 @@ export class ElementFinder {
         `No date text found to process for:\n\n\t${dateSelector.transactionDateSelector}`
       );
     }
-    dateSelector.dayjsDateParseRemoveRegex.forEach((rr) => {
+    dateSelector.dayjsDateParseRemoveBeforeParseRegex.forEach((rr) => {
       switch (rr) {
         case "[at]":
           dateToProcess = dateToProcess.replace(/ at /g, " ");
@@ -296,7 +329,7 @@ export class ElementFinder {
 
     const dateNZ = date.tz("Pacific/Auckland", true);
     if (!date.isValid()) {
-      const message = `Date could not be processed\n (Before:${dateText?.textContent} --> \nAfter: ${dateToProcess} --> \n  [${dateFormat}] \nAdjust the date format (selectorSet.dayjsDateParseFormat) and (optionally) replace characters before parse \nCurrent:${dateSelector.transactionDateSelector}`;
+      const message = `Date could not be processed\n (Before:${dateText?.textContent} --> \nAfter: ${dateToProcess} --> \n  [${dateFormat}] \nAdjust the date format (selectors.dayjsDateParseFormat) and (optionally) replace characters before parse \nCurrent:${dateSelector.transactionDateSelector}`;
       this.setElementStatus(dateText, false, message);
       return new Error(message);
     }
@@ -309,7 +342,10 @@ export class ElementFinder {
     try {
       console.log(`Row process start ${JSON.stringify(row.attributes)}`);
 
-      if (this.selectorSet.preProcessClick && !this.rowPreClickIsDone(row)) {
+      if (
+        this.accountExportConfig.selectors.preProcessClick &&
+        !this.rowPreClickIsDone(row)
+      ) {
         const didClick = await this.rowPreClick(row).catch((e) => {
           /* This is being rejected, but its not causing issues atm... sorry future me
            
@@ -329,19 +365,23 @@ export class ElementFinder {
 
       let dateRes: Dayjs;
 
-      const dateOrError: Dayjs | Error = this.selectorSet.date
-        ? this.parseDateFromRow(row, this.selectorSet.date)
-        : new Error("No this.selectorSet.date configured");
+      const dateOrError: Dayjs | Error = this.accountExportConfig.selectors.date
+        ? this.parseDateFromRow(row, this.accountExportConfig.selectors.date)
+        : new Error("No this.selectors.date configured");
       if ("message" in dateOrError) {
         console.error(
           `Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}`
         );
-        if (this.selectorSet.fallbackDate) {
+        if (this.accountExportConfig.selectors.fallbackDate) {
           console.error(
             `Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}`
           );
-          const fallbackDateOrError: Dayjs | Error = this.selectorSet.date
-            ? this.parseDateFromRow(row, this.selectorSet.fallbackDate)
+          const fallbackDateOrError: Dayjs | Error = this.accountExportConfig
+            .selectors.date
+            ? this.parseDateFromRow(
+                row,
+                this.accountExportConfig.selectors.fallbackDate
+              )
             : new Error(
                 "Primary date error, consider configuring a selectors.fallbackDate"
               );
@@ -355,7 +395,7 @@ export class ElementFinder {
           }
         } else {
           console.error(
-            `Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}\n\nTry setting a selectorSet.fallbackDate`
+            `Error parsing date: ${dateOrError.message}\n\n${dateOrError.stack}\n\nTry setting a selectors.fallbackDate`
           );
         }
       } else {
@@ -363,13 +403,15 @@ export class ElementFinder {
         console.log(`good date - ${dateOrError.toISOString()}`);
       }
 
-      /*  const typeEl = row.querySelector(this.selectorSet?.type);
+      /*  const typeEl = row.querySelector(this.accountExportConfig.selectors?.type);
               if (!typeEl) {
                   throw new Error('Transaction row missing type element');
               }
               const type = typeEl.textContent.trim();*/
 
-      const titleEl: HTMLElement = row.querySelector(this.selectorSet?.title);
+      const titleEl: HTMLElement = row.querySelector(
+        this.accountExportConfig.selectors?.title
+      );
       if (!titleEl) {
         this.setElementStatus(titleEl, false);
         throw new Error("Transaction missing titleEl element");
@@ -381,7 +423,7 @@ export class ElementFinder {
       const title = titleEl.textContent.trim();
 
       const detailsSummaryEl: HTMLElement = row.querySelector(
-        this.selectorSet?.details
+        this.accountExportConfig.selectors?.details
       );
       if (!detailsSummaryEl) {
         this.setElementStatus(detailsSummaryEl, false);
@@ -393,12 +435,15 @@ export class ElementFinder {
 
       let finalCreditAmount: string;
       let finalDepositAmount: string;
-      if (this.selectorSet?.drAmount && this.selectorSet?.crAmount) {
+      if (
+        this.accountExportConfig.selectors?.drAmount &&
+        this.accountExportConfig.selectors?.crAmount
+      ) {
         const drAmountEl: HTMLElement = row.querySelector(
-          this.selectorSet?.drAmount
+          this.accountExportConfig.selectors?.drAmount
         );
         const creditAmountEl: HTMLElement = row.querySelector(
-          this.selectorSet?.crAmount
+          this.accountExportConfig.selectors?.crAmount
         );
         if (!drAmountEl && !creditAmountEl) {
           throw new Error("Transaction row missing amount element");
@@ -414,9 +459,9 @@ export class ElementFinder {
           .replace(",", "");
         this.setElementStatus(drAmountEl, true);
         this.setElementStatus(creditAmountEl, true);
-      } else if (this.selectorSet?.crAmount) {
+      } else if (this.accountExportConfig.selectors?.crAmount) {
         const creditAmountEl: HTMLElement = row.querySelector(
-          this.selectorSet?.crAmount
+          this.accountExportConfig.selectors?.crAmount
         );
         const creditAmount = creditAmountEl?.textContent
           ?.trim()
