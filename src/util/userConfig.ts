@@ -22,7 +22,15 @@ const defaultConfig: UserConfig = {
         selectors: {
           accountName: `h1[class='account-name-heading']").querySelector("span[class='account-name']`,
           table: `div[class*='transactions-list']`,
+          isOnSiblingRowField: ["transactionDate"],
           date: {
+            dayjsDateParseRemoveBeforeParseRegex: ["[at]"],
+            dayjsDateParseFormat: "ddd D MMM YYYY h:mm a",
+            transactionDateSelector: `dd[class*='transaction-details-date-time']`,
+          },
+          fallbackDate: {
+            dayjsDateParseRemoveBeforeParseRegex: ["[at]"],
+            dayjsDateParseFormat: "",
             transactionDateSelector: `input[class*='date-range-start-date']`,
           },
           pageActions: {
@@ -36,9 +44,7 @@ const defaultConfig: UserConfig = {
           title: ``,
           drAmount: ``,
           crAmount: ``,
-          isOnSiblingRowField: [],
           tableRows: "",
-          fallbackDate: undefined,
         },
       } /*,
             {
@@ -108,11 +114,14 @@ export function isValidUserConfig(obj: any): string[] {
       if (!account.selectors) {
         errors.push("Selectors are missing in account.");
       } else {
-        for (const selector in account.selectors) {
+        //  const checkFields = ["isOnSiblingRowField"];
+        /*for (const selector in account.selectors.filter(
+          (s) => !nonStringFields.includes(s)
+        )) {
           if (typeof account.selectors[selector] !== "string") {
             errors.push(`Selector ${selector} is not a string.`);
           }
-        }
+        }*/
       }
     }
   }
@@ -122,7 +131,14 @@ export function isValidUserConfig(obj: any): string[] {
 
 export async function getUserConfig(): Promise<UserConfig> {
   const config = await Browser.storage.sync.get("BANK_IMPORTER_7000");
-  return defaults(config, defaultConfig);
+  if (!config) {
+    console.log("No config loaded, using defaults");
+    return defaultConfig;
+  }
+
+  console.log("getUserConfig");
+  console.log(config["BANK_IMPORTER_7000"]);
+  return config["BANK_IMPORTER_7000"];
 }
 /*
 export async function getSpecificAccountConfig(

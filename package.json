@@ -9,7 +9,7 @@
     "build-prod-min": "node build.mjs --create-zips --update-version --minify",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
-    "watch": "chokidar \"src/**/*.(js|ts)\" -c \"npm run build-prod\" -i \"build\""
+    "watch": "chokidar \"src/**/*.(js|ts|tsx)\" -c \"npm run build-prod\" -i \"build\""
   },
   "dependencies": {
     "@mozilla/readability": "^0.4.4",

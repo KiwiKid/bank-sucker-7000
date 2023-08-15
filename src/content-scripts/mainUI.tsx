@@ -24,16 +24,14 @@ let rows;
 
 async function getRows(mode: GetRowsMode) {
   try {
-    return await finder.getRows(mode);
+    rows = await finder.getRows(mode);
+    return rows;
   } catch (e) {
     console.error("COULD NOT GET ROWS", e);
   }
 }
 
-async function updateUI(
-  website: SupportedWebsites,
-  accountName: string
-): Promise<boolean> {
+async function updateUI(): Promise<boolean> {
   try {
     console.log("updateUI entry");
 
@@ -61,16 +59,11 @@ async function updateUI(
     }
 
     finder = new ElementFinder(specificConfig);
-    if (!finder.isWebsiteAccountValid || finder.errors.length > 0) {
+    if (!finder.isWebsiteAccountValid || finder?.errors.length > 0) {
       console.error("Early exit, no account name on page");
       return false;
     }
     await finder.setSelectorSet();
-    //change
-    actionsPanel = finder.getAddImportButtonLocation();
-    if (!actionsPanel) {
-      return;
-    }
 
     startDatePicker = finder.getStartDatePicker();
     endDatePicker = finder.getEndDatePicker();
@@ -86,10 +79,14 @@ async function updateUI(
     }
 
     table = finder.getTransactionTable();
-    actionsPanel = finder.getAddImportButtonLocation();
     btnSubmit = finder.getFilterTransactionsButton();
 
-    if (table) table.addEventListener("DOMSubtreeModified", onTableChange);
+    if (table) {
+      console.log("table");
+      table.addEventListener("DOMSubtreeModified", onTableChange);
+    } else {
+      console.error("No table found");
+    }
     //btnSubmit.addEventListener("click", onSubmit)
 
     // const textareaParentParent = table.parentElement.parentElement
@@ -97,34 +94,46 @@ async function updateUI(
     // textareaParentParent.parentElement.style.flexDirection = 'column'
     // textareaParentParent.parentElement.style.gap = '0px'
     // textareaParentParent.parentElement.style.marginBottom = '0.5em'
-    console.log("appendChild 1");
-
     const { shadowRootDiv, shadowRoot } = await createShadowRoot(
       "content-scripts/mainUI.css"
     );
 
-    console.log("appendChild 2");
+    shadowRootDiv.classList.add("ui-toolbar");
+    shadowRootDiv.style.position = "fixed";
+    shadowRootDiv.style.backgroundColor = "gray";
+    shadowRootDiv.style.top = "0";
+    shadowRootDiv.style.right = "0";
+    shadowRootDiv.style.zIndex = "1000";
+    shadowRootDiv.style.padding = "10px";
+
+    const existingUI = document.querySelectorAll("[class*='ui-toolbar']");
+    if (existingUI.length > 0) {
+      console.log("existing found");
+      existingUI.forEach((eiu) => eiu.remove());
+    } else {
+      console.log("none found");
+    }
 
     if (!actionsPanel) {
-      console.error("actionsPanel failed, adding to body");
-      actionsPanel = document.querySelectorAll("div")[0];
-      actionsPanel.prepend(shadowRootDiv);
+      console.error("actionsPanel FAILED, adding to body");
+      actionsPanel = document.querySelector("body");
+      actionsPanel.parentElement.prepend(shadowRootDiv);
     } else {
+      console.error("actionsPanel ADDED");
       actionsPanel.appendChild(shadowRootDiv);
     }
 
     if (finder.getTransactionTableRows()) {
       finder.addRowButtons();
+      rows = finder.getRows("dry_run");
     }
-
-    // shadowRootDiv.classList.add('wcg-toolbar')
 
     console.log("appendChild");
 
     render(
-      <Fragment>
+      <div class="ui-toolbar">
         <div>
-          {finder.website}/{finder.accountExportConfig.accountNameOnBankSite}
+          {finder.website}/{finder.accountExportConfig?.accountNameOnBankSite}
         </div>
         <button onClick={async () => await getRows("dry_run")} class="import">
           Scan Rows
@@ -132,12 +141,29 @@ async function updateUI(
         <button onClick={async () => await getRows("upload")} class="import">
           Upload Rows
         </button>
-        <Rows rows={rows} />
+        {rows && rows.length > 0 ? (
+          <Rows rows={rows} />
+        ) : (
+          <div>
+            {specificConfig.selectors?.tableRows && (
+              <div>
+                Try running:{" "}
+                <textarea>
+                  document.querySelectorAll("
+                  {specificConfig.selectors?.tableRows}")
+                </textarea>
+              </div>
+            )}
+            {!specificConfig.selectors?.tableRows && (
+              <div>set tableRows [{specificConfig.selectors?.tableRows}]</div>
+            )}
+          </div>
+        )}
         <button onClick={onSubmit} class="import">
           Submit
         </button>
         <SettingsConfig />
-      </Fragment>,
+      </div>,
       shadowRoot
     );
     //document.body.appendChild(p);
@@ -150,7 +176,7 @@ async function updateUI(
     });
     render(
       <Fragment>
-        Error Occured
+        Error Occured - {e.message} <pre>{e.stack}</pre>
         <SettingsConfig />
         <pre>Error: {JSON.stringify(e, undefined, 4)}</pre>
       </Fragment>,
@@ -291,20 +317,25 @@ export const getWebsite = (): SupportedWebsites | null => {
   return null;
 };
 
-export const getAccountNameFromPage = (
-  website: SupportedWebsites
-): {
+type AccountRes = {
   elm: HTMLElement;
   name: string;
-} => {
+};
+
+export const getAccountNameFromPage = (
+  website: SupportedWebsites
+): AccountRes | null => {
   switch (website) {
     case "anz": {
       const accountNameNode: HTMLElement = document.querySelector(
         "span[class='account-name']"
       );
+      if (!accountNameNode) {
+        return null;
+      }
       return {
         elm: accountNameNode,
-        name: accountNameNode.textContent,
+        name: accountNameNode?.textContent,
       };
     }
     case "simplicity": {
@@ -319,7 +350,7 @@ setTimeout(() => {
   const accountNameOnPage = getAccountNameFromPage(websiteName);
   updateUI(websiteName, accountNameOnPage);
 }, 1500);*/
-
+/*
 const bootstrapUI = async () => {
   console.log("MAIN ANZ UI 1 RAN ONLOAD");
   try {
@@ -353,14 +384,15 @@ const bootstrapUI = async () => {
     picker.setSelectorSet().then(() => {
       picker._printAllChecks();
       const rootEl = picker.getTransactionTable();
-
-      /*const observer = new MutationObserver(() => {
+      
+      const observer2 = new MutationObserver(async () => {
         console.log("MAIN ANZ UI RAN ONLOAD - 3 updateUI()");
         const websiteName = getWebsite();
         const accountNameOnPage = getAccountNameFromPage(websiteName);
         if (accountNameOnPage) {
-          updateUI(websiteName, accountNameOnPage.name);
+          updateUI();
         } else {
+          //change
           const res = prompt(
             `Could not find matching account name on page (${accountNameOnPage}). Enter it below to start the account setup:`
           );
@@ -368,14 +400,17 @@ const bootstrapUI = async () => {
           //const res = prompt(`What is the name of this account in firefly?`);
           if (res) {
             addNewAccountExportConfig(websiteName, res);
+            if (res) observer2.disconnect();
           }
         }
-      }).observe(rootEl, { childList: true });*/
+      })
+      
+      //observer2.observe(rootEl, { childList: true });
     });
   } catch (e) {
     console.info("error --> Could not update UI:\n", e.stack);
   }
-};
+};*/
 /*
 window.addEventListener("onload", () => {
   bootstrapUI();
@@ -389,20 +424,27 @@ document.addEventListener("DOMContentLoaded", () => {
 console.log("window.onload AFT");
 // window.onload = bootstrapUI;
 
-const observer = new MutationObserver(async () => {
+const bootstrap = async () => {
+  console.log("observer");
   const websiteName = getWebsite(); // Assuming you have a method called `getWebsite` which returns the website name
   const accountNameOnPage = getAccountNameFromPage(websiteName);
 
   if (accountNameOnPage && accountNameOnPage.elm) {
     console.log("accountNameOnPage && accountNameOnPage.elm TRUE");
     // Do whatever you want here with the account name
-    const res = await updateUI(websiteName, accountNameOnPage.name);
+    const res = await updateUI();
 
     // If you only want this to run once, disconnect the observer after it's found
     if (res) observer.disconnect();
   } else {
     console.log("accountNameOnPage && accountNameOnPage.elm FALSE");
   }
+};
+
+const observer = new MutationObserver(bootstrap);
+
+window.addEventListener("locationchange", () => {
+  bootstrap();
 });
 
 // Start observing the entire document for changes in child nodes

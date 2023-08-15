@@ -37,7 +37,7 @@ type SiblingRowField = "transactionDate";
 
 type RemoveType = "[at]" | "[Processed on]";
 
-export interface Dateselectors {
+export interface DateSelectors {
   transactionDateSelector: string;
   dayjsDateParseFormat?: string;
   dayjsDateParseRemoveBeforeParseRegex?: RemoveType[];
@@ -55,8 +55,8 @@ export interface SelectorSet {
   tableRows: string;
   details: string;
   title: string;
-  date: Dateselectors;
-  fallbackDate: Dateselectors;
+  date: DateSelectors;
+  fallbackDate: DateSelectors;
   pageActions: {
     datePickerStart: string;
     datePickerEnd: string;
@@ -126,6 +126,8 @@ export class ElementFinder {
     } else {
       this.isWebsiteAccountValid = false;
     }
+    this.website = this.accountExportConfig.website;
+    this.errors = [];
   }
 
   async setSelectorSet(): Promise<void> {
@@ -300,7 +302,7 @@ export class ElementFinder {
 
   parseDateFromRow(
     row: HTMLElement,
-    dateSelector: Dateselectors
+    dateSelector: DateSelectors
   ): Error | Dayjs {
     const dateText: HTMLElement = this.useSiblingRowIfConfigured(
       "transactionDate",

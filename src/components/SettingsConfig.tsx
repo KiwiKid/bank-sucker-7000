@@ -22,21 +22,23 @@ function SettingsConfig() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const newConfig = JSON.parse(inputValue);
+    try {
+      const newConfig = JSON.parse(event.target.children[4].value);
 
-    newConfig.firefly.token = tokenValue;
+      newConfig.firefly.token = tokenValue;
 
-    await updateUserConfig(newConfig)
-      .then(() => {
-        setInputStatus("Uploaded " + new Date().toISOString());
-      })
-      .catch((e) => {
-        setInputStatus(`failed ${JSON.stringify(e)}`);
-      });
+      await updateUserConfig(newConfig)
+        .then(() => {
+          setInputStatus("Uploaded " + new Date().toISOString());
+        })
+        .catch((e) => {
+          setInputStatus(`failed ${JSON.stringify(e)}`);
+        });
 
-    const validConfigErrors = isValidUserConfig(newConfig);
-    if (validConfigErrors.length > 0) {
-      /* const websiteName = getWebsite();
+      const validConfigErrors = isValidUserConfig(newConfig);
+      if (validConfigErrors.length > 0) {
+        setInputStatus(`failed ${JSON.stringify(validConfigErrors, null, 4)}`);
+        /* const websiteName = getWebsite();
       const accountNameOnPage = getAccountNameFromPage(websiteName);
 
       if (!accountNameOnPage) {
@@ -52,7 +54,6 @@ function SettingsConfig() {
         console.error(specificConfig.message);
         return;
       }
-      alert(JSON.stringify(validConfigErrors));
       /*await finder.setSelectorSet();
       const errors = finder._printAllChecks();
       if (errors && errors.length == 0) {
@@ -61,8 +62,10 @@ function SettingsConfig() {
           `${inputStatus} Errors: ${JSON.stringify(errors, null, 4)}`
         );
       }*/
-    } else {
-      /* setInputStatus(
+      } else {
+        `failed ${JSON.stringify(validConfigErrors, null, 4)}`;
+
+        /* setInputStatus(
         `${inputStatus} Errors via isValidUserConfig  ${JSON.stringify(
           validConfigErrors,
           null,
@@ -70,6 +73,9 @@ function SettingsConfig() {
         )}`
       );
     }*/
+      }
+    } catch (e) {
+      `failed ${JSON.stringify(e)}`;
     }
   };
 
@@ -154,7 +160,6 @@ function SettingsConfig() {
             ref={textareaRef}
             type="text"
             value={inputValue}
-            onChange={handleChange}
           />
           <label>
             FireFly Token
