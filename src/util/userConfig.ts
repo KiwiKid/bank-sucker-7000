@@ -2,6 +2,7 @@ import { defaults } from "lodash-es";
 import Browser from "webextension-polyfill";
 import { getSystemLanguage } from "./localization";
 import { SelectorSet, getEmptySelectorSet } from "./ElementFinder";
+import { ZodError, z } from "zod";
 
 const defaultConfig: UserConfig = {
   numWebResults: 3,
@@ -82,8 +83,83 @@ export type AccountExportConfig = {
   selectors: SelectorSet;
 };
 
-export function isValidUserConfig(obj: any): string[] {
-  const errors: string[] = [];
+const SupportedWebsites = z.union([z.literal("anz"), z.literal("simplicity")]);
+
+const DateConfig = z.object({
+  dayjsDateParseRemoveBeforeParseRegex: z.array(z.string()),
+  dayjsDateParseFormat: z.string(),
+  transactionDateSelector: z.string(),
+});
+
+const PageActions = z.object({
+  datePickerStart: z.string(),
+  datePickerEnd: z.string(),
+  filterTransactionButton: z.string(),
+});
+
+const SelectorSet = z.object({
+  accountName: z.string(),
+  table: z.string(),
+  isOnSiblingRowField: z.array(z.string()),
+  date: DateConfig,
+  fallbackDate: DateConfig.optional(),
+  pageActions: PageActions,
+  importButtonLocation: z.string(),
+  rootElm: z.string(),
+  details: z.string(),
+  title: z.string(),
+  drAmount: z.string(),
+  crAmount: z.string(),
+  tableRows: z.string(),
+});
+
+const AccountExportConfig = z.object({
+  website: SupportedWebsites,
+  fireflyAccountName: z.string(),
+  accountNameOnBankSite: z.string(),
+  selectors: SelectorSet,
+});
+
+const notDefaultToken = z.string().refine(
+  (value) => {
+    return value !== "set-this-token-in-browser-storage";
+  },
+  {
+    message:
+      "String can't be 'set-this-token-in-browser-storage'. Go to Options > Profile > OAuth in Firefly to generate a Personal Access Token",
+  }
+);
+
+const FireflyConfig = z.object({
+  dry_run: z.boolean(),
+  token: notDefaultToken,
+  address: z.string(),
+  accountExportConfig: z.array(AccountExportConfig),
+});
+
+const UserConfig = z.object({
+  numWebResults: z.number(),
+  webAccess: z.boolean(),
+  region: z.string(),
+  timePeriod: z.string(),
+  language: z.string(),
+  promptUUID: z.string(),
+  firefly: FireflyConfig,
+});
+
+export function getUserConfigErrors(obj: any): string[] {
+  try {
+    UserConfig.parse(obj);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return error.errors.map(
+        (z) => `${z.path} ${z.message} ${z.fatal ? "BLOCKING" : ""}`
+      );
+    }
+    return [`Unhandled error: ${JSON.stringify(error, null, 4)}`];
+  }
+
+  /*
 
   // Check if the main object and the firefly object are not undefined or null
   if (!obj) errors.push("Main object is undefined or null.");
@@ -121,12 +197,12 @@ export function isValidUserConfig(obj: any): string[] {
           if (typeof account.selectors[selector] !== "string") {
             errors.push(`Selector ${selector} is not a string.`);
           }
-        }*/
+        }
       }
     }
-  }
+  }*/
 
-  return errors;
+  return [];
 }
 
 export async function getUserConfig(): Promise<UserConfig> {

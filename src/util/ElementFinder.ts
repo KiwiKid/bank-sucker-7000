@@ -257,6 +257,14 @@ export class ElementFinder {
   }
 
   rowPreClickIsDone(row: HTMLElement): boolean {
+    if (
+      !this.accountExportConfig.selectors.preProcessClick.rowPreProcessClickDone
+    ) {
+      console.info(
+        "skipping row pre-click, no selector preProcessClick.rowPreProcessClickDone"
+      );
+      return true;
+    }
     const conditionMet = row.querySelector(
       this.accountExportConfig.selectors.preProcessClick.rowPreProcessClickDone
     );

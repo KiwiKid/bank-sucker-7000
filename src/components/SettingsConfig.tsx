@@ -9,13 +9,14 @@ import { ElementFinder } from "src/util/ElementFinder";
 import {
   getUserConfig,
   updateUserConfig,
-  isValidUserConfig,
+  getUserConfigErrors,
 } from "src/util/userConfig";
 
 function SettingsConfig() {
   const [showConfig, setShowConfig] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [inputStatus, setInputStatus] = useState("");
+  const [inputErrors, setInputErrors] = useState<string[]>([]);
   const [tokenValue, setTokenValue] = useState("");
 
   const textareaRef = useRef<HTMLTextAreaElement>();
@@ -27,17 +28,11 @@ function SettingsConfig() {
 
       newConfig.firefly.token = tokenValue;
 
-      await updateUserConfig(newConfig)
-        .then(() => {
-          setInputStatus("Uploaded " + new Date().toISOString());
-        })
-        .catch((e) => {
-          setInputStatus(`failed ${JSON.stringify(e)}`);
-        });
-
-      const validConfigErrors = isValidUserConfig(newConfig);
+      const validConfigErrors = getUserConfigErrors(newConfig);
       if (validConfigErrors.length > 0) {
-        setInputStatus(`failed ${JSON.stringify(validConfigErrors, null, 4)}`);
+        setInputErrors(validConfigErrors);
+        setInputStatus(`failed:`);
+        return;
         /* const websiteName = getWebsite();
       const accountNameOnPage = getAccountNameFromPage(websiteName);
 
@@ -62,18 +57,16 @@ function SettingsConfig() {
           `${inputStatus} Errors: ${JSON.stringify(errors, null, 4)}`
         );
       }*/
-      } else {
-        `failed ${JSON.stringify(validConfigErrors, null, 4)}`;
-
-        /* setInputStatus(
-        `${inputStatus} Errors via isValidUserConfig  ${JSON.stringify(
-          validConfigErrors,
-          null,
-          4
-        )}`
-      );
-    }*/
       }
+      setInputStatus(`Valid --> Uploading`);
+
+      await updateUserConfig(newConfig)
+        .then(() => {
+          setInputStatus("Uploaded " + new Date().toISOString());
+        })
+        .catch((e) => {
+          setInputStatus(`failed ${JSON.stringify(e)}`);
+        });
     } catch (e) {
       `failed ${JSON.stringify(e)}`;
     }
@@ -82,7 +75,7 @@ function SettingsConfig() {
   const handleChange = async (event) => {
     try {
       const res = JSON.parse(event.target.value);
-      if (isValidUserConfig(res)) {
+      /*if (isValidUserConfig(res)) {
         const websiteName = getWebsite();
         const accountNameOnPage = getAccountNameFromPage(websiteName);
 
@@ -110,7 +103,7 @@ function SettingsConfig() {
         // setInputValue(JSON.stringify(res, undefined, 4));
       } else {
         throw "Not valid";
-      }
+      }*/
     } catch (err) {
       setInputStatus(err.message);
     }
@@ -151,7 +144,16 @@ function SettingsConfig() {
         <form onSubmit={handleSubmit}>
           <button type="submit">Save Config</button>
           <div>Tips: Ensure you passs through the</div>
-          <pre>{inputStatus}</pre>
+          <div>
+            <h3>{inputStatus}</h3>
+            {inputErrors.length > 0 && (
+              <ul>
+                {inputErrors.map((vce, i) => (
+                  <li key={{ i }}>{JSON.stringify(vce, null, 4)}</li>
+                ))}
+              </ul>
+            )}
+          </div>
           <label for="config">Config</label>
           <textarea
             rows={30}
